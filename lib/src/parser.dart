@@ -117,9 +117,10 @@ class Parser {
   }
 
   Stmt _stmt() {
-    // TODO implement other statements
-    final Stmt statement = _exprStmt();
-    return statement;
+    if (_currentToken!.type == TokenType.variable) {
+      return _assignStmt();
+    }
+    return _exprStmt();
   }
 
   // bare_statement ::= expression, ";"
@@ -127,6 +128,18 @@ class Parser {
     final Expr expression = _expr();
     _consume(TokenType.semicolon);
     return BareStmt(expression: expression);
+  }
+
+  AssignStmt _assignStmt() {
+    _consume(TokenType.variable);
+    final StringToken name = _consume(TokenType.identifier) as StringToken;
+    _consume(TokenType.assignment);
+    final Expr expr = _expr();
+    _consume(TokenType.semicolon);
+    return AssignStmt(
+      name.value,
+      expr,
+    );
   }
 
   // Expressions
@@ -143,6 +156,10 @@ class Parser {
     }
     if (_currentToken!.type == TokenType.openSquareBracket) {
       return _listLiteral();
+    }
+
+    if (_currentToken!.type == TokenType.numberLiteral) {
+      return _numberLiteral();
     }
 
     // This should be last
@@ -231,6 +248,11 @@ class Parser {
     return StringLiteral(token.value);
   }
 
+  NumLiteral _numberLiteral() {
+    final NumToken token = _consume(TokenType.numberLiteral) as NumToken;
+    return NumLiteral(token.value);
+  }
+
   /// Consume and return the next token iff it matches [type].
   ///
   /// Throws [ParseError] if the type is not correct.
@@ -300,6 +322,13 @@ abstract class Stmt {
   const Stmt();
 }
 
+class AssignStmt extends Stmt {
+  const AssignStmt(this.name, this.expr);
+
+  final String name;
+  final Expr expr;
+}
+
 /// Interface for [ReturnStmt], etc.
 abstract class FunctionExitStmt extends Stmt {
   const FunctionExitStmt(this.returnValue);
@@ -338,6 +367,12 @@ class StringLiteral extends Expr {
   const StringLiteral(this.value);
 
   final String value;
+}
+
+class NumLiteral extends Expr {
+  const NumLiteral(this.value);
+
+  final double value;
 }
 
 class ListLiteral extends Expr {

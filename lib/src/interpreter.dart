@@ -56,7 +56,11 @@ class Interpreter {
       _throwRuntimeError('Unimplemented statement type ${stmt.runtimeType}');
     }
     if (stmt is BareStmt) {
-      await _bareStatement(stmt, ctx);
+      await _bareStmt(stmt, ctx);
+      return;
+    }
+    if (stmt is AssignStmt) {
+      await _assignStmt(stmt, ctx);
       return;
     }
     _throwRuntimeError('Unimplemented statement type ${stmt.runtimeType}');
@@ -76,11 +80,16 @@ class Interpreter {
     }
   }
 
-  Future<void> _bareStatement(BareStmt statement, Context ctx) async {
+  Future<void> _bareStmt(BareStmt statement, Context ctx) async {
     await _expr(statement.expression, ctx);
   }
 
-  Future<Object?> _expr(Expr expr, Context ctx) {
+  Future<void> _assignStmt(AssignStmt stmt, Context ctx) async {
+    final Val val = (await _expr(stmt.expr, ctx))!;
+    ctx.setVar(stmt.name, val);
+  }
+
+  Future<Val?> _expr(Expr expr, Context ctx) {
     if (expr is CallExpr) {
       return _callExpr(expr, ctx);
     }
@@ -93,60 +102,87 @@ class Interpreter {
       return _stringLiteral(expr);
     }
 
+    if (expr is NumLiteral) {
+      return _numLiteral(expr);
+    }
+
     if (expr is IdentifierRef) {
       return _resolveIdentifier(expr, ctx);
     }
     _throwRuntimeError('Unimplemented expression type $expr');
   }
 
-  Future<Object?> _callExpr(CallExpr expr, Context ctx) async {
+  Future<Val?> _callExpr(CallExpr expr, Context ctx) async {
     if (_externalFunctions.containsKey(expr.name)) {
       final ExtFuncDecl func = _externalFunctions[expr.name]!;
+      final List<Val> vals = <Val>[];
+      for (final Expr expr in expr.argList) {
+        vals.add((await _expr(expr, ctx))!);
+      }
+      ctx.pushFrame();
       await func.interpret(
-        argExpressions: expr.argList,
+        argVals: vals,
         interpreter: this,
         ctx: ctx,
       );
-      return null;
-    }
+      final CallFrame frame = ctx.popFrame();
+      return frame.returnVal;
+    } else {
+      final FuncDecl? func = _functionBindings[expr.name];
+      if (func == null) {
+        _throwRuntimeError('Tried to call undeclared function ${expr.name}');
+      }
 
-    final FuncDecl? func = _functionBindings[expr.name];
-    if (func == null) {
-      _throwRuntimeError('Tried to call undeclared function ${expr.name}');
+      return _executeFunc(func, ctx);
     }
-
-    return _executeFunc(func, ctx);
   }
 
-  Future<Object?> _executeFunc(FuncDecl func, Context ctx) async {
+  Future<Val?> _executeFunc(FuncDecl func, Context ctx) async {
+    ctx.pushFrame();
+    // TODO interpret higher level control flow
     for (final Stmt stmt in func.statements) {
-      if (stmt is FunctionExitStmt) {
-        return _expr(stmt.returnValue, ctx);
-      }
       await _stmt(stmt, ctx);
     }
-    return null;
+
+    // TODO check [FuncDecl] return type
+    return ctx.popFrame().returnVal;
   }
 
-  Future<Object?> _resolveIdentifier(
-      IdentifierRef identifier, Context ctx) async {
-    if (_functionBindings.containsKey(identifier.name)) {
-      return _functionBindings[identifier.name]!;
+  Future<Val> _resolveIdentifier(
+    IdentifierRef identifier,
+    Context ctx,
+  ) async {
+    final Val? val = ctx.getVal(identifier.name);
+    if (val == null) {
+      while (true) {
+        print(ctx.popFrame());
+      }
+      throw UnimplementedError(
+        "Don't know how to resolve identifier ${identifier.name}",
+      );
     }
-    throw UnimplementedError(
-        "Don't know how to resolve identifier ${identifier.name}");
+    return val;
   }
 
-  Future<List<Object?>> _list(List<Expr> expressions, Context ctx) async {
-    final List<Object?> elements = <Object?>[];
+  Future<ListVal> _list(List<Expr> expressions, Context ctx) async {
+    final List<Val> elements = <Val>[];
     for (final Expr element in expressions) {
-      elements.add(await _expr(element, ctx));
+      // expressions must be evaluated in order
+      elements.add((await _expr(element, ctx))!);
     }
-    return elements;
+    return ListVal(elements);
   }
 
-  Future<String> _stringLiteral(StringLiteral expr) {
-    return Future<String>.value(expr.value);
+  Future<StringVal> _stringLiteral(StringLiteral expr) {
+    return Future<StringVal>.value(
+      StringVal(expr.value),
+    );
+  }
+
+  Future<NumVal> _numLiteral(NumLiteral expr) {
+    return Future<NumVal>.value(
+      NumVal(expr.value),
+    );
   }
 
   Future<int> runProcess({
@@ -176,27 +212,27 @@ class Interpreter {
     return process.exitCode;
   }
 
-  String _castExprToString(Expr expr) {
-    switch (expr.runtimeType) {
-      case StringLiteral:
-        return (expr as StringLiteral).value;
-      case ListLiteral:
-        final StringBuffer buffer = StringBuffer('[');
-        buffer.write(
-          (expr as ListLiteral)
-              .elements
-              .map<String>((Expr expr) => _castExprToString(expr))
-              .join(', '),
-        );
-        buffer.write(']');
-        return buffer.toString();
+  String _castValToString(Val val) {
+    if (val is StringVal) {
+      return val.val;
     }
-    throw UnimplementedError(expr.runtimeType.toString());
+    if (val is NumVal) {
+      return val.val.toString();
+    }
+    if (val is ListVal) {
+      final StringBuffer buffer = StringBuffer('[');
+      buffer.write(
+        val.elements.map<String>((Val val) => _castValToString(val)).join(', '),
+      );
+      buffer.write(']');
+      return buffer.toString();
+    }
+    throw UnimplementedError(val.runtimeType.toString());
   }
 }
 
 class Context {
-  const Context({
+  Context({
     this.workingDir,
     this.env,
     this.parent,
@@ -205,6 +241,51 @@ class Context {
   final io.Directory? workingDir;
   final Map<String, String>? env;
   final Context? parent;
+
+  final List<CallFrame> _callStack = <CallFrame>[];
+
+  /// Create a new [CallFrame].
+  void pushFrame() => _callStack.add(CallFrame());
+
+  /// Pop the last [CallFrame].
+  CallFrame popFrame() => _callStack.removeLast();
+
+  Val? getVal(String name) {
+    final CallFrame frame = _callStack.last;
+    Val? val = frame.arguments[name];
+    if (val != null) {
+      return val;
+    }
+    val = frame.constBindings[name];
+    if (val != null) {
+      return val;
+    }
+    val = frame.varBindings[name];
+    if (val != null) {
+      return val;
+    }
+    return null;
+  }
+
+  void setVar(String name, Val val) {
+    // TODO verify name not already used
+    _callStack.last.varBindings[name] = val;
+  }
+}
+
+class CallFrame {
+  Val? returnVal;
+  final Map<String, Val> arguments = <String, Val>{};
+  final Map<String, Val> varBindings = <String, Val>{};
+  final Map<String, Val> constBindings = <String, Val>{};
+
+  @override
+  String toString() => '''
+CallFrame:
+Arguments: ${arguments.entries.map((MapEntry<String, Val> entry) => '${entry.key} -> ${entry.value}').join(', ')}
+Variables: ${varBindings.entries.map((MapEntry<String, Val> entry) => '${entry.key} -> ${entry.value}').join(', ')}
+Constants: ${constBindings.entries.map((MapEntry<String, Val> entry) => '${entry.key} -> ${entry.value}').join(', ')}
+''';
 }
 
 /// An external [FunctionDecl].
@@ -215,10 +296,38 @@ abstract class ExtFuncDecl extends FuncDecl {
   }) : super(statements: const <Stmt>[]);
 
   Future<void> interpret({
-    required List<Expr> argExpressions,
+    required Iterable<Val> argVals,
     required Interpreter interpreter,
     required Context ctx,
   });
+}
+
+class ValType {
+  const ValType(this.name);
+
+  final String name;
+}
+
+abstract class Val {
+  const Val();
+}
+
+class StringVal extends Val {
+  const StringVal(this.val);
+
+  final String val;
+}
+
+class NumVal extends Val {
+  const NumVal(this.val);
+
+  final double val;
+}
+
+class ListVal extends Val {
+  const ListVal(this.elements);
+
+  final List<Val> elements;
 }
 
 class PrintFuncDecl extends ExtFuncDecl {
@@ -230,17 +339,17 @@ class PrintFuncDecl extends ExtFuncDecl {
 
   @override
   Future<void> interpret({
-    required List<Expr> argExpressions,
+    required Iterable<Val> argVals,
     required Interpreter interpreter,
     required Context ctx,
   }) async {
-    if (argExpressions.length != 1) {
+    if (argVals.length != 1) {
       _throwRuntimeError(
-        'Function run() expected one arg, got $argExpressions',
+        'Function run() expected one arg, got $argVals',
       );
     }
     interpreter.stdoutPrint(
-      interpreter._castExprToString(argExpressions.first),
+      interpreter._castValToString(argVals.first),
     );
   }
 }
@@ -254,22 +363,22 @@ class RunFuncDecl extends ExtFuncDecl {
 
   @override
   Future<void> interpret({
-    required List<Expr> argExpressions,
+    required Iterable<Val> argVals,
     required Interpreter interpreter,
     required Context ctx,
   }) async {
-    if (argExpressions.length != 1) {
+    if (argVals.length != 1) {
       _throwRuntimeError(
-        'Function run() expected one arg, got $argExpressions',
+        'Function run() expected one arg, got $argVals',
       );
     }
 
-    final Object? value = await interpreter._expr(argExpressions.first, ctx);
-    final List<String> command;
-    if (value is String) {
-      command = value.split(' ');
-    } else if (value is List<String>) {
-      command = value;
+    final Val value = argVals.first;
+    final List<String> command = <String>[];
+    if (value is ListVal) {
+      for (final Val element in value.elements) {
+        command.add(interpreter._castValToString(element));
+      }
     } else {
       _throwRuntimeError(
         'Function run() expected an arg of either String or List<String>, got '

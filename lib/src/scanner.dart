@@ -7,6 +7,8 @@ enum TokenType {
   constant,
   /// Keyword "function".
   func,
+  /// Keyword "variable".
+  variable,
 
   // operators
 
@@ -29,6 +31,7 @@ enum TokenType {
   // String-like tokens
   identifier,
   stringLiteral,
+  numberLiteral,
 
   // misc
   comma,
@@ -65,6 +68,21 @@ class StringToken extends Token {
   @override
   String toString() => '${super.toString()}: "$value"';
 }
+
+class NumToken extends Token {
+  NumToken({
+    required this.value,
+    required super.line,
+    required super.char,
+  }) : super(type: TokenType.numberLiteral);
+
+  /// The contents of this string, excluding quotes.
+  final double value;
+
+  @override
+  String toString() => '${super.toString()}: "$value"';
+}
+
 
 class Scanner {
   Scanner._(this.source);
@@ -111,11 +129,15 @@ class Scanner {
         continue;
       }
 
+      if (_scanNumber()) {
+        continue;
+      }
+
       if (_scanMisc()) {
         continue;
       }
 
-      _index += 1;
+      throw ScanException('Unknown token:\n${source.substring(_index)}');
     }
     return _tokenList;
   }
@@ -130,11 +152,14 @@ class Scanner {
     TokenType? tokenType;
     final String keyword = match.group(0)!;
     switch (keyword) {
-      case 'const':
+      case 'constant':
         tokenType = TokenType.constant;
         break;
       case 'function':
         tokenType = TokenType.func;
+        break;
+      case 'variable':
+        tokenType = TokenType.variable;
         break;
       default:
         return false;
@@ -200,7 +225,7 @@ class Scanner {
     return false;
   }
 
-  static final RegExp kIdentifierPattern = RegExp(r'[a-zA-Z0-9_-]+');
+  static final RegExp kIdentifierPattern = RegExp(r'[a-zA-Z][a-zA-Z0-9_-]*');
 
   bool _scanIdentifier() {
     // TODO this can be faster
@@ -217,6 +242,27 @@ class Scanner {
         ),
       );
       _index += stringMatch.length;
+      return true;
+    }
+    return false;
+  }
+
+  // TODO implement decimal
+  static final RegExp kNumberPattern = RegExp(r'([0-9]+)');
+  bool _scanNumber() {
+    // TODO this can be faster
+    final String rest = source.substring(_index);
+    final Match? match = kNumberPattern.matchAsPrefix(rest);
+    if (match != null) {
+      final String num = match.group(0)!;
+      _tokenList.add(
+        NumToken(
+          value: double.tryParse(num)!,
+          line: _line,
+          char: _char,
+        ),
+      );
+      _index += num.length;
       return true;
     }
     return false;
@@ -339,4 +385,13 @@ class Scanner {
 
     return false;
   }
+}
+
+class ScanException implements Exception {
+  ScanException(this.msg);
+
+  final String msg;
+
+  @override
+  String toString() => 'ScanException: $msg';
 }
