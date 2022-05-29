@@ -20,6 +20,14 @@ enum TokenType {
   /// Operator "=="
   equals,
 
+  /// Operator "+"
+  plus,
+
+  /// Operator "->".
+  ///
+  /// Denotes a function's return type.
+  arrow,
+
   // brackets
   openParen,
   closeParen,
@@ -145,7 +153,11 @@ class Scanner {
         continue;
       }
 
-      throw ScanException('Unknown token:\n${source.substring(_index)}');
+      throw ScanException('''
+Unknown token:
+"${source.substring(_index)}"
+Last scanned token: ${_tokenList.last}
+''');
     }
     return _tokenList;
   }
@@ -184,6 +196,17 @@ class Scanner {
   }
 
   bool _scanOperator() {
+    if (source[_index] == '+') {
+      _tokenList.add(
+        Token(
+          type: TokenType.plus,
+          line: _line,
+          char: _char,
+        ),
+      );
+      _index += 1;
+      return true;
+    }
     if (source[_index] == '=') {
       if (source[_index + 1] == '=') {
         _tokenList.add(
@@ -205,6 +228,19 @@ class Scanner {
       );
       _index += 1;
       return true;
+    }
+    if (source[_index] == '-') {
+      if (source[_index + 1] == '>') {
+        _tokenList.add(
+          Token(
+            type: TokenType.arrow,
+            line: _line,
+            char: _char,
+          ),
+        );
+        _index += 2;
+        return true;
+      }
     }
     return false;
   }
