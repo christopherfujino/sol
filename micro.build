@@ -1,0 +1,36 @@
+target main {
+  const deps = [compile];
+}
+
+target compile {
+  const deps = [analyze, test];
+
+  function build() {
+    # TODO enable cache checks
+    run("rm -rf build");
+    run("mkdir build");
+    run("dart compile exe ./bin/micro_build.dart -o build/mb");
+  }
+}
+
+target analyze {
+  const deps = [packages];
+
+  function build() {
+    run("dart analyze . --fatal-warnings --fatal-infos");
+  }
+}
+
+target test {
+  const deps = [packages];
+
+  function build() {
+    run("dart test --reporter=expanded --concurrency=1");
+  }
+}
+
+target packages {
+  function build() {
+    run("dart pub get");
+  }
+}
