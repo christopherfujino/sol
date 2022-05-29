@@ -27,7 +27,7 @@ function main() {
 ```
 import IO;
 
-function maxNumber(numbers []Number) -> Number {
+function maxNumber(numbers Number[]) -> Number {
   variable max = 0;
   for index, number in numbers {
     if index == 0 {
