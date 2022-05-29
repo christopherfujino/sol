@@ -30,10 +30,11 @@ Future<void> main() async {
             .readAsString());
     final List<Token> tokenList =
         await Scanner.fromSourceCode(sourceCode).scan();
-    final ParseTree config =
+    final ParseTree tree =
         await Parser(tokenList: tokenList, entrySourceCode: sourceCode).parse();
+
     await TestInterpreter(
-      parseTree: config,
+      parseTree: tree,
       ctx: Context(workingDir: tempDir),
     ).interpret();
   });

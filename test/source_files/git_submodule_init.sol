@@ -1,4 +1,4 @@
 function main() {
-  run("git submodule init");
-  run("git submodule update");
+  run(String["git", "submodule", "init"]);
+  run(String["git", "submodule", "update"]);
 }

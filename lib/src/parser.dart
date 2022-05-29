@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'scanner.dart';
 import 'source_code.dart';
 
@@ -5,6 +7,17 @@ class ParseTree {
   const ParseTree(this.declarations);
 
   final List<Decl> declarations;
+
+  @override
+  String toString() {
+    final StringBuffer buffer = StringBuffer();
+    for (final Decl decl in declarations) {
+      for (final Stmt stmt in (decl as FuncDecl).statements) {
+        buffer.writeln(stmt.toString());
+      }
+    }
+    return buffer.toString();
+  }
 }
 
 class Parser {
@@ -154,12 +167,20 @@ class Parser {
     ])) {
       return _callExpr();
     }
-    if (_currentToken!.type == TokenType.openSquareBracket) {
-      return _listLiteral();
-    }
 
     if (_currentToken!.type == TokenType.numberLiteral) {
       return _numberLiteral();
+    }
+
+    if (_tokenLookahead(const <TokenType>[
+      TokenType.type,
+      TokenType.openSquareBracket,
+    ])) {
+      return _listLiteral();
+    }
+
+    if (_currentToken!.type == TokenType.type) {
+      return _typeExpr();
     }
 
     // This should be last
@@ -171,17 +192,27 @@ class Parser {
 
   /// An identifier reference.
   ///
-  /// Either a variable or target.
+  /// Either a variable or constant.
   IdentifierRef _identifierExpr() {
     final StringToken token = _consume(TokenType.identifier) as StringToken;
     return IdentifierRef(token.value);
   }
 
+  /// A type reference.
+  ///
+  /// Either intrinsic or user-defined.
+  TypeRef _typeExpr() {
+    final StringToken token = _consume(TokenType.type) as StringToken;
+    return TypeRef(token.value);
+  }
+
   ListLiteral _listLiteral() {
+    final TypeRef type = _typeExpr();
     final List<Expr> elements = <Expr>[];
 
     _consume(TokenType.openSquareBracket);
     while (_currentToken!.type != TokenType.closeSquareBracket) {
+      // TODO validate type
       elements.add(_expr());
 
       if (_currentToken!.type == TokenType.closeSquareBracket) {
@@ -192,8 +223,7 @@ class Parser {
     }
 
     _consume(TokenType.closeSquareBracket);
-
-    return ListLiteral(elements);
+    return ListLiteral(elements, type);
   }
 
   // call_expression ::= identifier, "(", arg_list?, ")"
@@ -340,6 +370,11 @@ class BareStmt extends Stmt {
   const BareStmt({required this.expression});
 
   final Expr expression;
+
+  @override
+  String toString() {
+    return expression.toString();
+  }
 }
 
 abstract class Expr {
@@ -352,6 +387,20 @@ class CallExpr extends Expr {
   final String name;
 
   final List<Expr> argList;
+
+  @override
+  String toString() {
+    return 'function $name(${argList.map((Expr expr) => expr.toString()).join(', ')})';
+  }
+}
+
+class TypeRef extends Expr {
+  const TypeRef(this.name);
+
+  final String name;
+
+  @override
+  String toString() => 'TypeRef: "$name"';
 }
 
 class IdentifierRef extends Expr {
@@ -367,6 +416,9 @@ class StringLiteral extends Expr {
   const StringLiteral(this.value);
 
   final String value;
+
+  @override
+  String toString() => 'StringLiteral: "$value"';
 }
 
 class NumLiteral extends Expr {
@@ -376,9 +428,15 @@ class NumLiteral extends Expr {
 }
 
 class ListLiteral extends Expr {
-  const ListLiteral(this.elements);
+  const ListLiteral(this.elements, this.type);
 
   final List<Expr> elements;
+  final TypeRef type;
+
+  @override
+  String toString() {
+    return '${type.name}[${elements.map((Expr expr) => expr.toString()).join(', ')}]';
+  }
 }
 
 class ParseError implements Exception {

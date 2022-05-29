@@ -5,8 +5,10 @@ enum TokenType {
 
   /// Keyword "const".
   constant,
+
   /// Keyword "function".
   func,
+
   /// Keyword "variable".
   variable,
 
@@ -32,6 +34,9 @@ enum TokenType {
   identifier,
   stringLiteral,
   numberLiteral,
+
+  /// Either primitive or user defined type.
+  type,
 
   // misc
   comma,
@@ -83,7 +88,6 @@ class NumToken extends Token {
   String toString() => '${super.toString()}: "$value"';
 }
 
-
 class Scanner {
   Scanner._(this.source);
 
@@ -130,6 +134,10 @@ class Scanner {
       }
 
       if (_scanNumber()) {
+        continue;
+      }
+
+      if (_scanTypeName()) {
         continue;
       }
 
@@ -202,7 +210,7 @@ class Scanner {
   }
 
   // TODO: handle escapes?
-  static final RegExp kStringPattern = RegExp(r'"(.*)"');
+  static final RegExp kStringPattern = RegExp(r'"([^"]*)"');
 
   bool _scanString() {
     // TODO this can be faster
@@ -225,7 +233,7 @@ class Scanner {
     return false;
   }
 
-  static final RegExp kIdentifierPattern = RegExp(r'[a-zA-Z][a-zA-Z0-9_-]*');
+  static final RegExp kIdentifierPattern = RegExp(r'[a-z][a-zA-Z0-9_]*');
 
   bool _scanIdentifier() {
     // TODO this can be faster
@@ -242,6 +250,28 @@ class Scanner {
         ),
       );
       _index += stringMatch.length;
+      return true;
+    }
+    return false;
+  }
+
+  static final RegExp kTypePattern = RegExp(r'[A-Z][a-zA-Z0-9_]*');
+
+  bool _scanTypeName() {
+    // TODO this can be faster
+    final String rest = source.substring(_index);
+    final Match? match = kTypePattern.matchAsPrefix(rest);
+    if (match != null) {
+      final String typeMatch = match.group(0)!;
+      _tokenList.add(
+        StringToken(
+          type: TokenType.type,
+          value: typeMatch,
+          line: _line,
+          char: _char,
+        ),
+      );
+      _index += typeMatch.length;
       return true;
     }
     return false;

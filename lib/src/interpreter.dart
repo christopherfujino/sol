@@ -154,9 +154,6 @@ class Interpreter {
   ) async {
     final Val? val = ctx.getVal(identifier.name);
     if (val == null) {
-      while (true) {
-        print(ctx.popFrame());
-      }
       throw UnimplementedError(
         "Don't know how to resolve identifier ${identifier.name}",
       );
