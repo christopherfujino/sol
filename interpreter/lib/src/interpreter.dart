@@ -166,7 +166,8 @@ class Interpreter {
     final Val? returnVal = ctx.popFrame().returnVal;
     // validate return value type
     if (_typeRefToValType(func.returnType) != returnVal?.type) {
-      _throwRuntimeError('Function ${func.name} should return ${func.returnType?.name ?? 'Nothing'} but it actually returned ${returnVal?.type.name ?? 'Nothing'}');
+      _throwRuntimeError(
+          'Function ${func.name} should return ${func.returnType?.name ?? 'Nothing'} but it actually returned ${returnVal?.type.name ?? 'Nothing'}');
     }
     return returnVal;
   }
@@ -273,7 +274,7 @@ class Interpreter {
       return val.val;
     }
     if (val is NumVal) {
-      return val.val.toString();
+      return val.toString();
     }
     if (val is ListVal) {
       final StringBuffer buffer = StringBuffer('[');
@@ -400,6 +401,15 @@ class NumVal extends Val {
   const NumVal(this.val) : super(ValType.number);
 
   final double val;
+
+  @override
+  String toString() {
+    if (val == val.ceil()) {
+      return val.toStringAsFixed(0);
+    } else {
+      return val.toString();
+    }
+  }
 }
 
 class ListVal extends Val {

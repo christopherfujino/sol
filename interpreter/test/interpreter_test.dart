@@ -71,4 +71,22 @@ Future<void> main() async {
       contains('Hello, world!'),
     );
   });
+
+  test('function arguments and return values are passed', () async {
+    final SourceCode sourceCode = SourceCode(
+        await io.File('test/source_files/function_arguments.sol').readAsString());
+    final List<Token> tokenList =
+        await Scanner.fromSourceCode(sourceCode).scan();
+    final ParseTree tree =
+        await Parser(tokenList: tokenList, entrySourceCode: sourceCode).parse();
+    final TestInterpreter interpreter = TestInterpreter(
+      parseTree: tree,
+      ctx: Context(workingDir: tempDir),
+    );
+    await interpreter.interpret();
+    expect(
+      interpreter.stdoutBuffer.toString().split('\n'),
+      contains('3'),
+    );
+  });
 }
