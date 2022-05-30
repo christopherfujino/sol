@@ -15,18 +15,14 @@ for more details.
 ### Hello, world!
 
 ```
-import IO;
-
 function main() {
-  IO.print("Hello, world!");
+  print("Hello, world!");
 }
 ```
 
 ### Max Number
 
 ```
-import IO;
-
 function maxNumber(numbers Number[]) -> Number {
   variable max = 0;
   for index, number in numbers {
@@ -44,7 +40,7 @@ function maxNumber(numbers Number[]) -> Number {
 function main() {
   variable allNumbers = Number[];
   variable bigNumber = maxNumber(allNumbers);
-  IO.print("The biggest number is " + bigNumber);
+  print("The biggest number is " + bigNumber);
 }
 ```
 
@@ -139,21 +135,13 @@ Keyword | Example | Implemented?
 
 #### Process
 
-```
-import Process;
-```
-
 Function Name | Description | Implemented?
 --- | --- | ---
-`Process.run(String[])` | Run a subprocess. | [ ]
+`run(String[])` | Run a subprocess. | [ ]
 
 #### I/O
 
-```
-import IO;
-```
-
 Function Name | Description | Implemented?
 --- | --- | ---
-`IO.print(String)` | Print a `String` to STDOUT | [ ]
-`IO.printError(String)` | Print a `String` to STDERR | [ ]
+`print(String)` | Print a `String` to STDOUT | [ ]
+`printError(String)` | Print a `String` to STDERR | [ ]
