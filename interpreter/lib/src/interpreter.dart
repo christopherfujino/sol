@@ -268,24 +268,6 @@ class Interpreter {
     });
     return process.exitCode;
   }
-
-  String _castValToString(Val val) {
-    if (val is StringVal) {
-      return val.val;
-    }
-    if (val is NumVal) {
-      return val.toString();
-    }
-    if (val is ListVal) {
-      final StringBuffer buffer = StringBuffer('[');
-      buffer.write(
-        val.elements.map<String>((Val val) => _castValToString(val)).join(', '),
-      );
-      buffer.write(']');
-      return buffer.toString();
-    }
-    throw UnimplementedError(val.runtimeType.toString());
-  }
 }
 
 class Context {
@@ -395,6 +377,9 @@ class StringVal extends Val {
   const StringVal(this.val) : super(ValType.string);
 
   final String val;
+
+  @override
+  String toString() => val;
 }
 
 class NumVal extends Val {
@@ -417,6 +402,16 @@ class ListVal extends Val {
 
   final List<Val> elements;
   final ValType subType;
+
+  @override
+  String toString() {
+    final StringBuffer buffer = StringBuffer('[');
+    buffer.write(
+      elements.map<String>((Val val) => val.toString()).join(', '),
+    );
+    buffer.write(']');
+    return buffer.toString();
+  }
 }
 
 class PrintFuncDecl extends ExtFuncDecl {
@@ -440,7 +435,7 @@ class PrintFuncDecl extends ExtFuncDecl {
       );
     }
     interpreter.stdoutPrint(
-      interpreter._castValToString(argVals.first),
+      argVals.first.toString(),
     );
   }
 }
@@ -470,7 +465,7 @@ class RunFuncDecl extends ExtFuncDecl {
     final List<String> command = <String>[];
     if (value is ListVal) {
       for (final Val element in value.elements) {
-        command.add(interpreter._castValToString(element));
+        command.add((element as StringVal).toString());
       }
     } else {
       _throwRuntimeError(
