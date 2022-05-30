@@ -12,6 +12,9 @@ enum TokenType {
   /// Keyword "variable".
   variable,
 
+  /// Keyword "return".
+  returnKeyword,
+
   // operators
 
   /// Operator "="
@@ -180,6 +183,9 @@ Last scanned token: ${_tokenList.last}
         break;
       case 'variable':
         tokenType = TokenType.variable;
+        break;
+      case 'return':
+        tokenType = TokenType.returnKeyword;
         break;
       default:
         return false;

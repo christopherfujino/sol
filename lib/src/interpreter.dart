@@ -331,7 +331,7 @@ class PrintFuncDecl extends ExtFuncDecl {
   const PrintFuncDecl()
       : super(
           name: 'print',
-          params: const <IdentifierRef>[IdentifierRef('msg')],
+          params: const <Parameter>[Parameter(IdentifierRef('msg'), TypeRef('String'))],
         );
 
   @override
@@ -355,7 +355,7 @@ class RunFuncDecl extends ExtFuncDecl {
   const RunFuncDecl()
       : super(
           name: 'run',
-          params: const <IdentifierRef>[IdentifierRef('command')],
+          params: const <Parameter>[Parameter(IdentifierRef('command'), ListTypeRef('String'))],
         );
 
   @override

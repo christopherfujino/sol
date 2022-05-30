@@ -111,9 +111,14 @@ class Parser {
     _consume(TokenType.func);
     final StringToken name = _consume(TokenType.identifier) as StringToken;
     _consume(TokenType.openParen);
-    final List<IdentifierRef> params = _paramList();
+    final List<Parameter> params = _paramList();
     _consume(TokenType.closeParen);
 
+    TypeRef? returnType;
+    if (_currentToken!.type == TokenType.arrow) {
+      _consume(TokenType.arrow);
+      returnType = _typeExpr();
+    }
     _consume(TokenType.openCurlyBracket);
 
     final List<Stmt> statements = <Stmt>[];
@@ -126,10 +131,14 @@ class Parser {
       name: name.value,
       params: params,
       statements: statements,
+      returnType: returnType,
     );
   }
 
   Stmt _stmt() {
+    if (_currentToken!.type == TokenType.returnKeyword) {
+      return _returnStmt();
+    }
     if (_currentToken!.type == TokenType.variable) {
       return _assignStmt();
     }
@@ -141,6 +150,16 @@ class Parser {
     final Expr expression = _expr();
     _consume(TokenType.semicolon);
     return BareStmt(expression: expression);
+  }
+
+  ReturnStmt _returnStmt() {
+    _consume(TokenType.returnKeyword);
+    if (_currentToken!.type == TokenType.semicolon) {
+      _consume(TokenType.semicolon);
+      return const ReturnStmt(NothingExpr());
+    }
+    final Expr returnValue = _expr();
+    return ReturnStmt(returnValue);
   }
 
   AssignStmt _assignStmt() {
@@ -203,6 +222,7 @@ class Parser {
   /// Either intrinsic or user-defined.
   TypeRef _typeExpr() {
     final StringToken token = _consume(TokenType.type) as StringToken;
+    // TODO could be list type
     return TypeRef(token.value);
   }
 
@@ -243,10 +263,12 @@ class Parser {
 
   /// Parses identifiers (comma delimited) until a [TokenType.closeParen] is
   /// reached (but not consumed).
-  List<IdentifierRef> _paramList() {
-    final List<IdentifierRef> list = <IdentifierRef>[];
+  List<Parameter> _paramList() {
+    final List<Parameter> list = <Parameter>[];
     while (_currentToken?.type != TokenType.closeParen) {
-      list.add(_identifierExpr());
+      final IdentifierRef name = _identifierExpr();
+      final TypeRef type = _typeExpr();
+      list.add(Parameter(name, type));
       if (_currentToken?.type == TokenType.closeParen) {
         break;
       }
@@ -342,10 +364,12 @@ class FuncDecl extends Decl {
     required super.name,
     required this.statements,
     required this.params,
+    this.returnType,
   });
 
   final List<Stmt> statements;
-  final List<IdentifierRef> params;
+  final List<Parameter> params;
+  final TypeRef? returnType;
 }
 
 abstract class Stmt {
@@ -361,7 +385,11 @@ class AssignStmt extends Stmt {
 
 /// Interface for [ReturnStmt], etc.
 abstract class FunctionExitStmt extends Stmt {
-  const FunctionExitStmt(this.returnValue);
+  const FunctionExitStmt();
+}
+
+class ReturnStmt extends FunctionExitStmt {
+  const ReturnStmt(this.returnValue);
 
   final Expr returnValue;
 }
@@ -379,6 +407,10 @@ class BareStmt extends Stmt {
 
 abstract class Expr {
   const Expr();
+}
+
+class NothingExpr extends Expr {
+  const NothingExpr();
 }
 
 class CallExpr extends Expr {
@@ -401,6 +433,21 @@ class TypeRef extends Expr {
 
   @override
   String toString() => 'TypeRef: "$name"';
+}
+
+class ListTypeRef extends TypeRef {
+  const ListTypeRef(super.name);
+
+  @override
+  String toString() => 'TypeRef: "$name[]"';
+}
+
+/// A pairing of an [IdentifierRef] and a [TypeRef].
+class Parameter {
+  const Parameter(this.name, this.type);
+
+  final IdentifierRef name;
+  final TypeRef type;
 }
 
 class IdentifierRef extends Expr {
