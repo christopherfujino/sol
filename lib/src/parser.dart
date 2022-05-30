@@ -29,6 +29,9 @@ class Parser {
   final List<Token> tokenList;
   final SourceCode entrySourceCode;
 
+  // For debugging.
+  Token? _previousToken;
+
   /// Index for current token being parsed.
   int _index = 0;
   Token? get _currentToken {
@@ -86,7 +89,7 @@ class Parser {
     }
     throw ParseError(
       '\n${entrySourceCode.getDebugMessage(token.line, token.char)}\n'
-      'Parse error: $token - $message\n',
+      'Parse error: $token - $message\nPrevious token: $_previousToken',
     );
   }
 
@@ -159,6 +162,7 @@ class Parser {
       return const ReturnStmt(NothingExpr());
     }
     final Expr returnValue = _expr();
+    _consume(TokenType.semicolon);
     return ReturnStmt(returnValue);
   }
 
@@ -176,7 +180,70 @@ class Parser {
 
   // Expressions
 
+  /// Expressions.
+  ///
+  /// expression
+  /// equality
+  /// comparison
+  /// term
+  /// factor
+  /// unary
+  /// primary
   Expr _expr() {
+    return _equality();
+  }
+
+  /// Equality expression.
+  ///
+  /// comparison ( ( "!=" | "==" ) comparison )* ;
+  Expr _equality() {
+    /// TODO [EqualityExpr]
+    return _comparison();
+  }
+
+  /// term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+  Expr _comparison() {
+    /// TODO [ComparisonExpr]
+    return _term();
+  }
+
+  /// factor ( ( "-" | "+" ) factor )* ;
+  Expr _term() {
+    Expr left = _factor();
+    while (_currentToken!.type == TokenType.plus ||
+        _currentToken!.type == TokenType.minus) {
+      final Token operatorToken = _consume(_currentToken!.type);
+      final Expr right = _factor();
+      left = BinaryExpr(left, operatorToken, right);
+    }
+    return left;
+  }
+
+  /// unary ( ( "/" | "*" ) unary )* ;
+  Expr _factor() {
+    Expr left = _unary();
+    while (_currentToken!.type == TokenType.divide ||
+        _currentToken!.type == TokenType.multiply) {
+      final Token operatorToken = _consume(_currentToken!.type);
+      final Expr right = _factor();
+      left = BinaryExpr(left, operatorToken, right);
+    }
+    return left;
+  }
+
+  /// ( "!" | "-" ) unary | primary ;
+  Expr _unary() {
+    if (_currentToken!.type == TokenType.bang ||
+        _currentToken!.type == TokenType.minus) {
+      final Token operatorToken = _consume(_currentToken!.type);
+      final Expr unary = _unary();
+      return UnaryExpr(operatorToken, unary);
+    }
+    return _primary();
+  }
+
+  /// NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
+  Expr _primary() {
     if (_currentToken!.type == TokenType.stringLiteral) {
       return _stringLiteral();
     }
@@ -310,13 +377,15 @@ class Parser {
   /// Throws [ParseError] if the type is not correct.
   Token _consume(TokenType type) {
     // coerce type as this should only be called if you know what's there.
-    final Token consumedToken = _currentToken!;
-    if (consumedToken.type != type) {
-      _throwParseError(consumedToken,
-          'Expected a ${type.name}, got a ${consumedToken.type.name}');
+    _previousToken = _currentToken;
+    if (_previousToken!.type != type) {
+      _throwParseError(
+        _previousToken,
+        'Expected a ${type.name}, got a ${_previousToken!.type.name}',
+      );
     }
     _index += 1;
-    return consumedToken;
+    return _previousToken!;
   }
 
   /// Verifies whether or not the [tokenTypes] are next in the [tokenList].
@@ -413,6 +482,28 @@ class NothingExpr extends Expr {
   const NothingExpr();
 }
 
+class BinaryExpr extends Expr {
+  const BinaryExpr(
+    this.left,
+    this.operatorToken,
+    this.right,
+  );
+
+  final Expr left;
+  final Token operatorToken;
+  final Expr right;
+}
+
+class UnaryExpr extends Expr {
+  const UnaryExpr(
+    this.operatorToken,
+    this.primary,
+  );
+
+  final Token operatorToken;
+  final Expr primary;
+}
+
 class CallExpr extends Expr {
   const CallExpr(this.name, this.argList);
 
@@ -427,7 +518,20 @@ class CallExpr extends Expr {
 }
 
 class TypeRef extends Expr {
-  const TypeRef(this.name);
+  factory TypeRef(String name) {
+    TypeRef? maybe = _instances[name];
+    if (maybe != null) {
+      return maybe;
+    }
+    maybe = TypeRef._(name);
+    _instances[name] = maybe;
+    return maybe;
+  }
+
+  const TypeRef._(this.name);
+
+  static final Map<String, TypeRef> _instances = <String, TypeRef>{};
+  static const TypeRef string = TypeRef._('String');
 
   final String name;
 
@@ -436,7 +540,7 @@ class TypeRef extends Expr {
 }
 
 class ListTypeRef extends TypeRef {
-  const ListTypeRef(super.name);
+  const ListTypeRef(super.name) : super._();
 
   @override
   String toString() => 'TypeRef: "$name[]"';

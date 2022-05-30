@@ -17,14 +17,26 @@ enum TokenType {
 
   // operators
 
-  /// Operator "="
+  /// Operator "=".
   assignment,
 
-  /// Operator "=="
+  /// Operator "==".
   equals,
 
-  /// Operator "+"
+  /// Operator "+".
   plus,
+
+  /// Operator "-".
+  minus,
+
+  /// Operator "*".
+  multiply,
+
+  /// Operator "/".
+  divide,
+
+  /// Operator "!".
+  bang,
 
   /// Operator "->".
   ///
@@ -202,6 +214,39 @@ Last scanned token: ${_tokenList.last}
   }
 
   bool _scanOperator() {
+    if (source[_index] == '!') {
+      _tokenList.add(
+        Token(
+          type: TokenType.bang,
+          line: _line,
+          char: _char,
+        ),
+      );
+      _index += 1;
+      return true;
+    }
+    if (source[_index] == '*') {
+      _tokenList.add(
+        Token(
+          type: TokenType.multiply,
+          line: _line,
+          char: _char,
+        ),
+      );
+      _index += 1;
+      return true;
+    }
+    if (source[_index] == '/') {
+      _tokenList.add(
+        Token(
+          type: TokenType.divide,
+          line: _line,
+          char: _char,
+        ),
+      );
+      _index += 1;
+      return true;
+    }
     if (source[_index] == '+') {
       _tokenList.add(
         Token(
@@ -247,6 +292,15 @@ Last scanned token: ${_tokenList.last}
         _index += 2;
         return true;
       }
+        _tokenList.add(
+          Token(
+            type: TokenType.minus,
+            line: _line,
+            char: _char,
+          ),
+        );
+        _index += 1;
+
     }
     return false;
   }

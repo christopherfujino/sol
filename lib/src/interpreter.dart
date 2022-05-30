@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io' as io;
 
 import 'parser.dart';
+import 'scanner.dart';
 
 typedef Printer = void Function(String);
 
@@ -48,12 +49,15 @@ class Interpreter {
       _throwRuntimeError('Could not find a "main" function');
     }
 
-    await _executeFunc(mainFunc, ctx);
+    // TODO read CLI args
+    final List<Val> args = <Val>[];
+    await _executeFunc(mainFunc, args, ctx);
   }
 
   Future<void> _stmt(Stmt stmt, Context ctx) async {
-    if (stmt is FunctionExitStmt) {
-      _throwRuntimeError('Unimplemented statement type ${stmt.runtimeType}');
+    if (stmt is ReturnStmt) {
+      ctx.returnValue = await _expr(stmt.returnValue, ctx);
+      return;
     }
     if (stmt is BareStmt) {
       await _bareStmt(stmt, ctx);
@@ -95,7 +99,7 @@ class Interpreter {
     }
 
     if (expr is ListLiteral) {
-      return _list(expr.elements, ctx);
+      return _list(expr, ctx);
     }
 
     if (expr is StringLiteral) {
@@ -109,19 +113,24 @@ class Interpreter {
     if (expr is IdentifierRef) {
       return _resolveIdentifier(expr, ctx);
     }
+
+    if (expr is BinaryExpr) {
+      return _binaryExpr(expr, ctx);
+    }
     _throwRuntimeError('Unimplemented expression type $expr');
   }
 
   Future<Val?> _callExpr(CallExpr expr, Context ctx) async {
+    final List<Val> args = <Val>[];
+    for (final Expr expr in expr.argList) {
+      args.add((await _expr(expr, ctx))!);
+    }
+
     if (_externalFunctions.containsKey(expr.name)) {
       final ExtFuncDecl func = _externalFunctions[expr.name]!;
-      final List<Val> vals = <Val>[];
-      for (final Expr expr in expr.argList) {
-        vals.add((await _expr(expr, ctx))!);
-      }
       ctx.pushFrame();
       await func.interpret(
-        argVals: vals,
+        argVals: args,
         interpreter: this,
         ctx: ctx,
       );
@@ -133,19 +142,33 @@ class Interpreter {
         _throwRuntimeError('Tried to call undeclared function ${expr.name}');
       }
 
-      return _executeFunc(func, ctx);
+      return _executeFunc(func, args, ctx);
     }
   }
 
-  Future<Val?> _executeFunc(FuncDecl func, Context ctx) async {
+  Future<Val?> _executeFunc(FuncDecl func, List<Val> args, Context ctx) async {
     ctx.pushFrame();
+    for (int idx = 0; idx < func.params.length; idx += 1) {
+      final Parameter param = func.params[idx];
+      final Val arg = args[idx];
+      if (_typeRefToValType(param.type) != arg.type) {
+        _throwRuntimeError(
+          'Expected arg of type ${func.params[idx].type}, got ${args[idx].type}',
+        );
+      }
+      ctx.setArg(param.name.name, arg);
+    }
     // TODO interpret higher level control flow
     for (final Stmt stmt in func.statements) {
       await _stmt(stmt, ctx);
     }
 
-    // TODO check [FuncDecl] return type
-    return ctx.popFrame().returnVal;
+    final Val? returnVal = ctx.popFrame().returnVal;
+    // validate return value type
+    if (_typeRefToValType(func.returnType) != returnVal?.type) {
+      _throwRuntimeError('Function ${func.name} should return ${func.returnType?.name ?? 'Nothing'} but it actually returned ${returnVal?.type.name ?? 'Nothing'}');
+    }
+    return returnVal;
   }
 
   Future<Val> _resolveIdentifier(
@@ -161,13 +184,49 @@ class Interpreter {
     return val;
   }
 
-  Future<ListVal> _list(List<Expr> expressions, Context ctx) async {
+  ValType? _typeRefToValType(TypeRef? ref) {
+    if (ref == null) {
+      return null;
+    }
+    switch (ref.name) {
+      case 'String':
+        return ValType.string;
+      case 'Number':
+        return ValType.number;
+      default:
+        // TODO implement user-defined types
+        throw UnimplementedError('Unknown TypeRef $ref');
+    }
+  }
+
+  Future<Val> _binaryExpr(BinaryExpr expr, Context ctx) async {
+    switch (expr.operatorToken.type) {
+      case TokenType.plus:
+        final Val leftVal = (await _expr(expr.left, ctx))!;
+        final Val rightVal = (await _expr(expr.right, ctx))!;
+        if (leftVal is! NumVal || rightVal is! NumVal) {
+          _throwRuntimeError(
+            '"+" operator not implemented for types ${leftVal.runtimeType} and ${rightVal.runtimeType}',
+          );
+        }
+        return NumVal(leftVal.val + rightVal.val);
+      default:
+        throw UnimplementedError(
+          "Don't know how to calculate ${expr.operatorToken}",
+        );
+    }
+  }
+
+  Future<ListVal> _list(ListLiteral listLiteral, Context ctx) async {
     final List<Val> elements = <Val>[];
-    for (final Expr element in expressions) {
+    for (final Expr element in listLiteral.elements) {
       // expressions must be evaluated in order
       elements.add((await _expr(element, ctx))!);
     }
-    return ListVal(elements);
+    return ListVal(
+      _typeRefToValType(listLiteral.type)!,
+      elements,
+    );
   }
 
   Future<StringVal> _stringLiteral(StringLiteral expr) {
@@ -268,6 +327,14 @@ class Context {
     // TODO verify name not already used
     _callStack.last.varBindings[name] = val;
   }
+
+  void setArg(String name, Val val) {
+    // TODO verify name not already used
+    _callStack.last.arguments[name] = val;
+  }
+
+  set returnValue(Val? val) => _callStack.last.returnVal = val;
+  Val? get returnValue => _callStack.last.returnVal;
 }
 
 class CallFrame {
@@ -300,38 +367,55 @@ abstract class ExtFuncDecl extends FuncDecl {
 }
 
 class ValType {
-  const ValType(this.name);
+  const ValType._(this.name);
+
+  factory ValType.list(ValType subtype) {
+    // TODO cache
+    return ValType._('$subtype[]');
+  }
 
   final String name;
+
+  static const ValType string = ValType._('String');
+  static const ValType number = ValType._('Number');
+  static const ValType nothing = ValType._('Nothing');
+
+  @override
+  String toString() => 'ValType: $name';
 }
 
 abstract class Val {
-  const Val();
+  const Val(this.type);
+
+  final ValType type;
 }
 
 class StringVal extends Val {
-  const StringVal(this.val);
+  const StringVal(this.val) : super(ValType.string);
 
   final String val;
 }
 
 class NumVal extends Val {
-  const NumVal(this.val);
+  const NumVal(this.val) : super(ValType.number);
 
   final double val;
 }
 
 class ListVal extends Val {
-  const ListVal(this.elements);
+  ListVal(this.subType, this.elements) : super(ValType.list(subType));
 
   final List<Val> elements;
+  final ValType subType;
 }
 
 class PrintFuncDecl extends ExtFuncDecl {
   const PrintFuncDecl()
       : super(
           name: 'print',
-          params: const <Parameter>[Parameter(IdentifierRef('msg'), TypeRef('String'))],
+          params: const <Parameter>[
+            Parameter(IdentifierRef('msg'), TypeRef.string)
+          ],
         );
 
   @override
@@ -355,7 +439,9 @@ class RunFuncDecl extends ExtFuncDecl {
   const RunFuncDecl()
       : super(
           name: 'run',
-          params: const <Parameter>[Parameter(IdentifierRef('command'), ListTypeRef('String'))],
+          params: const <Parameter>[
+            Parameter(IdentifierRef('command'), ListTypeRef('String'))
+          ],
         );
 
   @override
