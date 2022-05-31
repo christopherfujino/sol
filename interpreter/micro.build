@@ -9,7 +9,7 @@ target compile {
     # TODO enable cache checks
     run("rm -rf build");
     run("mkdir build");
-    run("dart compile exe ./bin/micro_build.dart -o build/mb");
+    run("dart compile exe ./bin/sol.dart -o build/sol");
   }
 }
 
