@@ -143,7 +143,7 @@ class Interpreter {
     for (int idx = 0; idx < func.params.length; idx += 1) {
       final Parameter param = func.params[idx];
       final Val arg = args[idx];
-      final ValType? paramType = _typeRefToValType(param.type);
+      final ValType paramType = _typeRefToValType(param.type);
       if (paramType != arg.type) {
         _throwRuntimeError(
           'Parameter named ${param.name} expected to be of type $paramType, got ${arg.type} to function ${func.name}',
@@ -232,7 +232,7 @@ class Interpreter {
       elements.add((await _expr(element, ctx))!);
     }
     return ListVal(
-      _typeRefToValType(listLiteral.type)!,
+      _typeRefToValType(listLiteral.type),
       elements,
     );
   }

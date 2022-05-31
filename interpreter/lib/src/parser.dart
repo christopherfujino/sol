@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'scanner.dart';
 import 'source_code.dart';
 
