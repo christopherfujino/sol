@@ -460,6 +460,14 @@ class FuncDecl extends Decl {
   final List<Stmt> statements;
   final List<Parameter> params;
   final TypeRef? returnType;
+
+  @override
+  String toString() {
+    if (returnType == null) {
+      return 'function $name(${params.map((Parameter param) => param.toString()).join(', ')})';
+    }
+    return 'function $name(${params.map((Parameter param) => param.toString()).join(', ')}) -> $returnType';
+  }
 }
 
 abstract class Stmt {
@@ -571,7 +579,7 @@ class TypeRef extends Expr {
   final String name;
 
   @override
-  String toString() => 'TypeRef: "$name"';
+  String toString() => name;
 }
 
 class ListTypeRef extends TypeRef {
@@ -604,6 +612,11 @@ class Parameter {
 
   final IdentifierRef name;
   final TypeRef type;
+
+  @override
+  String toString() {
+    return '$name $type';
+  }
 }
 
 class IdentifierRef extends Expr {
@@ -612,7 +625,7 @@ class IdentifierRef extends Expr {
   final String name;
 
   @override
-  String toString() => 'IdentifierRef: "$name"';
+  String toString() => name;
 }
 
 class StringLiteral extends Expr {
@@ -621,7 +634,7 @@ class StringLiteral extends Expr {
   final String value;
 
   @override
-  String toString() => 'StringLiteral: "$value"';
+  String toString() => '"value"';
 }
 
 class NumLiteral extends Expr {

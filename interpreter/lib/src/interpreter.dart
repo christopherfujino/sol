@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io' as io;
 
+import 'emitter.dart';
 import 'parser.dart';
 import 'scanner.dart';
 
@@ -10,10 +11,23 @@ class Interpreter {
   Interpreter({
     required this.parseTree,
     required this.ctx,
+    this.emitter,
   });
 
   final ParseTree parseTree;
   final Context ctx;
+
+  final Emitter emitter;
+
+  Future<void> emit(String msg) async {
+    if (emitter == null) {
+      return;
+    }
+    final Exception? error = await emitter!(InterpreterMessage(msg));
+    if (error != null) {
+      throw error;
+    }
+  }
 
   final Map<String, FuncDecl> _functionBindings = <String, FuncDecl>{};
 
@@ -152,6 +166,7 @@ class Interpreter {
   }
 
   Future<Val?> _executeFunc(FuncDecl func, List<Val> args, Context ctx) async {
+    await emit('Executing $func');
     ctx.pushFrame();
 
     // TODO check lengths

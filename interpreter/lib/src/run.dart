@@ -3,14 +3,17 @@ import 'dart:io' as io;
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 
+import 'emitter.dart';
 import 'interpreter.dart';
 import 'parser.dart';
 import 'scanner.dart';
 import 'source_code.dart';
 
-const String kSourceFileName = 'micro.build';
-
 class RunCommand extends Command<void> {
+  RunCommand() {
+    argParser.addFlag('debug');
+  }
+
   @override
   String name = 'run';
 
@@ -21,6 +24,16 @@ class RunCommand extends Command<void> {
 
   @override
   Future<void> run() async {
+    final bool debug = argResults!['debug']! as bool;
+
+    Emitter? emitter;
+    if (debug) {
+      emitter = (EmitMessage msg) async {
+        io.stderr.writeln(msg.toString());
+        return null;
+      };
+    }
+
     if (_argResults.rest.length != 1) {
       throw Exception('Pass one argument as a source file.');
     }
@@ -43,6 +56,7 @@ class RunCommand extends Command<void> {
     await Interpreter(
       parseTree: config,
       ctx: ctx,
+      emitter: emitter,
     ).interpret();
   }
 }
