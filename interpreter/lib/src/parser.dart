@@ -540,10 +540,27 @@ class TypeRef extends Expr {
 }
 
 class ListTypeRef extends TypeRef {
-  const ListTypeRef(super.name) : super._();
+  factory ListTypeRef(TypeRef subType) {
+    ListTypeRef? maybe = _instances[subType];
+    if (maybe != null) {
+      return maybe;
+    }
+    maybe = ListTypeRef._(subType);
+    _instances[subType] = maybe;
+    return maybe;
+  }
+
+  const ListTypeRef._(this.subType) : super._('unused');
+
+  static final Map<TypeRef, ListTypeRef> _instances = <TypeRef, ListTypeRef>{};
+
+  final TypeRef subType;
 
   @override
-  String toString() => 'TypeRef: "$name[]"';
+  String get name => '${subType.name}[]';
+
+  @override
+  String toString() => 'ListTypeRef: $name';
 }
 
 /// A pairing of an [IdentifierRef] and a [TypeRef].

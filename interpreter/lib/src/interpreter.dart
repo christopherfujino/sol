@@ -17,10 +17,10 @@ class Interpreter {
 
   final Map<String, FuncDecl> _functionBindings = <String, FuncDecl>{};
 
-  static const Map<String, ExtFuncDecl> _externalFunctions =
+  static final Map<String, ExtFuncDecl> _externalFunctions =
       <String, ExtFuncDecl>{
     'run': RunFuncDecl(),
-    'print': PrintFuncDecl(),
+    'print': const PrintFuncDecl(),
   };
 
   //visibleForOverriding
@@ -126,48 +126,52 @@ class Interpreter {
       args.add((await _expr(expr, ctx))!);
     }
 
-    if (_externalFunctions.containsKey(expr.name)) {
-      final ExtFuncDecl func = _externalFunctions[expr.name]!;
-      ctx.pushFrame();
-      await func.interpret(
-        argVals: args,
-        interpreter: this,
-        ctx: ctx,
-      );
-      final CallFrame frame = ctx.popFrame();
-      return frame.returnVal;
-    } else {
-      final FuncDecl? func = _functionBindings[expr.name];
-      if (func == null) {
-        _throwRuntimeError('Tried to call undeclared function ${expr.name}');
-      }
+    final FuncDecl? func =
+        _externalFunctions[expr.name] ?? _functionBindings[expr.name];
 
-      return _executeFunc(func, args, ctx);
+    if (func == null) {
+      _throwRuntimeError('Tried to call undeclared function ${expr.name}');
     }
+
+    return _executeFunc(func, args, ctx);
   }
 
   Future<Val?> _executeFunc(FuncDecl func, List<Val> args, Context ctx) async {
     ctx.pushFrame();
+
+    // TODO check lengths
     for (int idx = 0; idx < func.params.length; idx += 1) {
       final Parameter param = func.params[idx];
       final Val arg = args[idx];
-      if (_typeRefToValType(param.type) != arg.type) {
+      final ValType? paramType = _typeRefToValType(param.type);
+      if (paramType != arg.type) {
         _throwRuntimeError(
-          'Expected arg of type ${func.params[idx].type}, got ${args[idx].type}',
+          'Parameter named ${param.name} expected to be of type $paramType, got ${arg.type} to function ${func.name}',
         );
       }
       ctx.setArg(param.name.name, arg);
     }
-    // TODO interpret higher level control flow
-    for (final Stmt stmt in func.statements) {
-      await _stmt(stmt, ctx);
+
+    if (func is ExtFuncDecl) {
+      await func.interpret(
+        interpreter: this,
+        ctx: ctx,
+      );
+    } else {
+      // TODO interpret higher level control flow
+      for (final Stmt stmt in func.statements) {
+        await _stmt(stmt, ctx);
+      }
     }
 
     final Val? returnVal = ctx.popFrame().returnVal;
     // validate return value type
-    if (_typeRefToValType(func.returnType) != returnVal?.type) {
+    final ValType definedType = _typeRefToValType(func.returnType);
+    final ValType actualType = returnVal?.type ?? ValType.nothing;
+    if (definedType != actualType) {
       _throwRuntimeError(
-          'Function ${func.name} should return ${func.returnType?.name ?? 'Nothing'} but it actually returned ${returnVal?.type.name ?? 'Nothing'}');
+        'Function ${func.name} should return $definedType but it actually returned $actualType',
+      );
     }
     return returnVal;
   }
@@ -185,9 +189,12 @@ class Interpreter {
     return val;
   }
 
-  ValType? _typeRefToValType(TypeRef? ref) {
+  ValType _typeRefToValType(TypeRef? ref) {
     if (ref == null) {
-      return null;
+      return ValType.nothing;
+    }
+    if (ref is ListTypeRef) {
+      return ListValType(_typeRefToValType(ref.subType));
     }
     switch (ref.name) {
       case 'String':
@@ -289,6 +296,8 @@ class Context {
   /// Pop the last [CallFrame].
   CallFrame popFrame() => _callStack.removeLast();
 
+  Map<String, Val> get args => _callStack.last.arguments;
+
   Val? getVal(String name) {
     final CallFrame frame = _callStack.last;
     Val? val = frame.arguments[name];
@@ -343,7 +352,6 @@ abstract class ExtFuncDecl extends FuncDecl {
   }) : super(statements: const <Stmt>[]);
 
   Future<void> interpret({
-    required Iterable<Val> argVals,
     required Interpreter interpreter,
     required Context ctx,
   });
@@ -351,11 +359,6 @@ abstract class ExtFuncDecl extends FuncDecl {
 
 class ValType {
   const ValType._(this.name);
-
-  factory ValType.list(ValType subtype) {
-    // TODO cache
-    return ValType._('$subtype[]');
-  }
 
   final String name;
 
@@ -365,6 +368,27 @@ class ValType {
 
   @override
   String toString() => 'ValType: $name';
+}
+
+class ListValType extends ValType {
+  factory ListValType(ValType subType) {
+    ListValType? maybe = _instances[subType];
+    if (maybe != null) {
+      return maybe;
+    }
+    maybe = ListValType._(subType);
+    _instances[subType] = maybe;
+    return maybe;
+  }
+
+  ListValType._(this.subType) : super._(subType.name);
+
+  static final Map<ValType, ListValType> _instances = <ValType, ListValType>{};
+
+  final ValType subType;
+
+  @override
+  String toString() => 'ListValType: $name[]';
 }
 
 abstract class Val {
@@ -398,7 +422,7 @@ class NumVal extends Val {
 }
 
 class ListVal extends Val {
-  ListVal(this.subType, this.elements) : super(ValType.list(subType));
+  ListVal(this.subType, this.elements) : super(ListValType(subType));
 
   final List<Val> elements;
   final ValType subType;
@@ -425,43 +449,37 @@ class PrintFuncDecl extends ExtFuncDecl {
 
   @override
   Future<void> interpret({
-    required Iterable<Val> argVals,
     required Interpreter interpreter,
     required Context ctx,
   }) async {
-    if (argVals.length != 1) {
-      _throwRuntimeError(
-        'Function run() expected one arg, got $argVals',
-      );
-    }
     interpreter.stdoutPrint(
-      argVals.first.toString(),
+      ctx.args['msg'].toString(),
     );
   }
 }
 
 class RunFuncDecl extends ExtFuncDecl {
-  const RunFuncDecl()
+  RunFuncDecl()
       : super(
           name: 'run',
-          params: const <Parameter>[
-            Parameter(IdentifierRef('command'), ListTypeRef('String'))
+          params: <Parameter>[
+            Parameter(
+                const IdentifierRef('command'), ListTypeRef(TypeRef.string))
           ],
         );
 
   @override
   Future<void> interpret({
-    required Iterable<Val> argVals,
     required Interpreter interpreter,
     required Context ctx,
   }) async {
-    if (argVals.length != 1) {
+    if (!ctx.args.containsKey('command')) {
       _throwRuntimeError(
-        'Function run() expected one arg, got $argVals',
+        'Function run() expected one arg, got ${ctx.args}',
       );
     }
 
-    final Val value = argVals.first;
+    final Val value = ctx.args['command']!;
     final List<String> command = <String>[];
     if (value is ListVal) {
       for (final Val element in value.elements) {
