@@ -33,7 +33,7 @@ void main() {
     ).interpret();
   }
 
-  test('foo', () async {
+  test('RuntimeError if a () -> Nothing functions returns something', () async {
     await expectLater(
       () => interpret('test/error_files/no_return_value_specified.sol'),
       throwsA(
@@ -41,7 +41,8 @@ void main() {
           (RuntimeError err) => err.message,
           'correct message',
           contains(
-            'Function func_that_returns should return ValType: Nothing but it actually returned ValType: Number',
+            'Function func_that_returns should return ValType: Nothing but it '
+            'actually returned ValType: Number',
           ),
         ),
       ),

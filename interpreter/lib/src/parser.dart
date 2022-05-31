@@ -256,21 +256,32 @@ class Parser {
       return _numberLiteral();
     }
 
-    if (_tokenLookahead(const <TokenType>[
-      TokenType.type,
-      TokenType.openSquareBracket,
-    ])) {
-      return _listLiteral();
-    }
+    // Types
+    {
+      if (_tokenLookahead(const <TokenType>[
+        TokenType.type,
+        TokenType.openSquareBracket,
+      ])) {
+        return _listLiteral();
+      }
 
-    if (_currentToken!.type == TokenType.type) {
-      return _typeExpr();
+      if (_tokenLookahead(const <TokenType>[
+        TokenType.type,
+        TokenType.openParen,
+      ])) {
+        return _typeCast();
+      }
+
+      if (_currentToken!.type == TokenType.type) {
+        return _typeExpr();
+      }
     }
 
     // This should be last
     if (_currentToken!.type == TokenType.identifier) {
       return _identifierExpr();
     }
+
     _throwParseError(_currentToken, 'Unimplemented expression type');
   }
 
@@ -289,6 +300,18 @@ class Parser {
     final StringToken token = _consume(TokenType.type) as StringToken;
     // TODO could be list type
     return TypeRef(token.value);
+  }
+
+  /// A type cast.
+  ///
+  /// Looks like `TypeRef(expr) -> Val`.
+  TypeCast _typeCast() {
+    final TypeRef type = _typeExpr();
+    _consume(TokenType.openParen);
+    final Expr expr = _expr();
+    _consume(TokenType.closeParen);
+
+    return TypeCast(type, expr);
   }
 
   ListLiteral _listLiteral() {
@@ -515,6 +538,18 @@ class CallExpr extends Expr {
   }
 }
 
+class TypeCast extends Expr {
+  const TypeCast(this.type, this.expr);
+
+  final TypeRef type;
+  final Expr expr;
+
+  @override
+  String toString() {
+    return 'TypeCast ($expr) -> $type';
+  }
+}
+
 class TypeRef extends Expr {
   factory TypeRef(String name) {
     TypeRef? maybe = _instances[name];
@@ -528,7 +563,9 @@ class TypeRef extends Expr {
 
   const TypeRef._(this.name);
 
-  static final Map<String, TypeRef> _instances = <String, TypeRef>{};
+  static final Map<String, TypeRef> _instances = <String, TypeRef>{
+    'String': string,
+  };
   static const TypeRef string = TypeRef._('String');
 
   final String name;

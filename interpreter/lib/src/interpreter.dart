@@ -117,6 +117,10 @@ class Interpreter {
     if (expr is BinaryExpr) {
       return _binaryExpr(expr, ctx);
     }
+
+    if (expr is TypeCast) {
+      return _typeCast(expr, ctx);
+    }
     _throwRuntimeError('Unimplemented expression type $expr');
   }
 
@@ -134,6 +138,17 @@ class Interpreter {
     }
 
     return _executeFunc(func, args, ctx);
+  }
+
+  Future<Val?> _typeCast(TypeCast expr, Context ctx) async {
+    switch (expr.type) {
+      case TypeRef.string:
+        final Val val = (await _expr(expr.expr, ctx))!;
+        return StringVal(val.toString());
+      default:
+        throw UnimplementedError('Cast to type ${expr.type} not implemented');
+
+    }
   }
 
   Future<Val?> _executeFunc(FuncDecl func, List<Val> args, Context ctx) async {
@@ -401,7 +416,19 @@ abstract class Val {
 }
 
 class StringVal extends Val {
-  const StringVal(this.val) : super(ValType.string);
+  factory StringVal(String val) {
+    StringVal? maybe = _instances[val];
+    if (maybe != null) {
+      return maybe;
+    }
+    maybe = StringVal._(val);
+    _instances[val] = maybe;
+    return maybe;
+  }
+
+  const StringVal._(this.val) : super(ValType.string);
+
+  static final Map<String, StringVal> _instances = <String, StringVal>{};
 
   final String val;
 
@@ -410,7 +437,19 @@ class StringVal extends Val {
 }
 
 class NumVal extends Val {
-  const NumVal(this.val) : super(ValType.number);
+  factory NumVal(double val) {
+    NumVal? maybe = _instances[val];
+    if (maybe != null) {
+      return maybe;
+    }
+    maybe = NumVal._(val);
+    _instances[val] = maybe;
+    return maybe;
+  }
+
+  const NumVal._(this.val) : super(ValType.number);
+
+  static final Map<double, NumVal> _instances = <double, NumVal>{};
 
   final double val;
 
