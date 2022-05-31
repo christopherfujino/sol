@@ -36,7 +36,15 @@ void main() {
   test('foo', () async {
     await expectLater(
       () => interpret('test/error_files/no_return_value_specified.sol'),
-      throwsA(isA<RuntimeError>()),
+      throwsA(
+        isA<RuntimeError>().having(
+          (RuntimeError err) => err.message,
+          'correct message',
+          contains(
+            'Function func_that_returns should return ValType: Nothing but it actually returned ValType: Number',
+          ),
+        ),
+      ),
     );
   });
 }
