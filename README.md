@@ -20,6 +20,16 @@ function main() {
 }
 ```
 
+### Explicit Type Casts
+
+```
+function main() {
+  constant answer = 42;
+  constant message = "The secret is " + String(42);
+  print(message);
+}
+```
+
 ### Max Number
 
 ```
