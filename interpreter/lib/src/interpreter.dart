@@ -212,12 +212,15 @@ class Interpreter {
       case TokenType.plus:
         final Val leftVal = (await _expr(expr.left, ctx))!;
         final Val rightVal = (await _expr(expr.right, ctx))!;
-        if (leftVal is! NumVal || rightVal is! NumVal) {
-          _throwRuntimeError(
-            '"+" operator not implemented for types ${leftVal.runtimeType} and ${rightVal.runtimeType}',
-          );
+        if (leftVal is NumVal && rightVal is NumVal) {
+          return NumVal(leftVal.val + rightVal.val);
         }
-        return NumVal(leftVal.val + rightVal.val);
+        if (leftVal is StringVal && rightVal is StringVal) {
+          return StringVal(leftVal.val + rightVal.val);
+        }
+        _throwRuntimeError(
+          '"+" operator not implemented for types ${leftVal.runtimeType} and ${rightVal.runtimeType}',
+        );
       default:
         throw UnimplementedError(
           "Don't know how to calculate ${expr.operatorToken}",
