@@ -481,9 +481,13 @@ class FuncDecl extends Decl {
   @override
   String toString() {
     if (returnType == null) {
-      return 'function $name(${params.map((Parameter param) => param.toString()).join(', ')})';
+      final String paramString =
+          params.map((Parameter param) => param.toString()).join(', ');
+      return 'function $name($paramString)';
     }
-    return 'function $name(${params.map((Parameter param) => param.toString()).join(', ')}) -> $returnType';
+    final String paramString =
+        params.map((Parameter param) => param.toString()).join(', ');
+    return 'function $name($paramString) -> $returnType';
   }
 }
 
@@ -571,7 +575,9 @@ class CallExpr extends Expr {
 
   @override
   String toString() {
-    return 'function $name(${argList.map((Expr expr) => expr.toString()).join(', ')})';
+    final String paramString =
+        argList.map((Expr expr) => expr.toString()).join(', ');
+    return 'function $name($paramString)';
   }
 }
 
@@ -680,7 +686,9 @@ class ListLiteral extends Expr {
 
   @override
   String toString() {
-    return '${type.name}[${elements.map((Expr expr) => expr.toString()).join(', ')}]';
+    final String elementString =
+        elements.map((Expr expr) => expr.toString()).join(', ');
+    return '${type.name}[$elementString]';
   }
 }
 

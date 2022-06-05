@@ -15,7 +15,8 @@ Future<void> main() async {
     });
 
     test('can scan and parse ${buildFile.path}', () async {
-      final List<Token> tokenList = await Scanner.fromSourceCode(sourceCode).scan();
+      final List<Token> tokenList =
+          await Scanner.fromSourceCode(sourceCode).scan();
       await Parser(tokenList: tokenList, entrySourceCode: sourceCode).parse();
     });
   }

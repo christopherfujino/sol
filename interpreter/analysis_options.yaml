@@ -41,7 +41,6 @@ linter:
     - avoid_equals_and_hash_code_on_mutable_classes
     - avoid_escaping_inner_quotes
     - avoid_field_initializers_in_const_classes
-    # - avoid_final_parameters # incompatible with prefer_final_parameters
     - avoid_function_literals_in_foreach_calls
     - avoid_implementing_value_types
     - avoid_init_to_null
@@ -55,10 +54,10 @@ linter:
     - avoid_relative_lib_imports
     - avoid_renaming_method_parameters
     - avoid_return_types_on_setters
-    # - avoid_returning_null # still violated by some pre-nnbd code that we haven't yet migrated
+    - avoid_returning_null
     - avoid_returning_null_for_future
     - avoid_returning_null_for_void
-    # - avoid_returning_this # there are enough valid reasons to return `this` that this lint ends up with too many false positives
+    - avoid_returning_this
     - avoid_setters_without_getters
     - avoid_shadowing_type_parameters
     - avoid_single_cascade_in_expression_statements
@@ -81,7 +80,7 @@ linter:
     # - conditional_uri_does_not_exist # not yet tested
     # - constant_identifier_names # needs an opt-out https://github.com/dart-lang/linter/issues/204
     - control_flow_in_finally
-    # - curly_braces_in_flow_control_structures # not required by flutter style
+    - curly_braces_in_flow_control_structures # not required by flutter style
     - depend_on_referenced_packages
     - deprecated_consistency
     # - diagnostic_describe_all_properties # enabled only at the framework level (packages/flutter/lib)
@@ -103,7 +102,7 @@ linter:
     - library_names
     - library_prefixes
     - library_private_types_in_public_api
-    # - lines_longer_than_80_chars # not required by flutter style
+    - lines_longer_than_80_chars # not required by flutter style
     - list_remove_unrelated_type
     # - literal_only_boolean_expressions # too many false positives: https://github.com/dart-lang/linter/issues/453
     - missing_whitespace_between_adjacent_strings

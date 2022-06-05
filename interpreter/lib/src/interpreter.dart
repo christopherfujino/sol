@@ -182,7 +182,8 @@ class Interpreter {
       final ValType paramType = _typeRefToValType(param.type);
       if (paramType != arg.type) {
         _throwRuntimeError(
-          'Parameter named ${param.name} expected to be of type $paramType, got ${arg.type} to function ${func.name}',
+          'Parameter named ${param.name} expected to be of type $paramType, '
+          'got ${arg.type} to function ${func.name}',
         );
       }
       ctx.setArg(param.name.name, arg);
@@ -206,7 +207,8 @@ class Interpreter {
     final ValType actualType = returnVal?.type ?? ValType.nothing;
     if (definedType != actualType) {
       _throwRuntimeError(
-        'Function ${func.name} should return $definedType but it actually returned $actualType',
+        'Function ${func.name} should return $definedType but it actually '
+        'returned $actualType',
       );
     }
     return returnVal;
@@ -255,7 +257,8 @@ class Interpreter {
           return StringVal(leftVal.val + rightVal.val);
         }
         _throwRuntimeError(
-          '"+" operator not implemented for types ${leftVal.runtimeType} and ${rightVal.runtimeType}',
+          '"+" operator not implemented for types ${leftVal.runtimeType} and '
+          '${rightVal.runtimeType}',
         );
       default:
         throw UnimplementedError(
@@ -358,18 +361,21 @@ class Context {
     // verify name not already used
     if (_callStack.last.arguments[name] != null) {
       _throwRuntimeError(
-        'Tried to declare identifier $name, but it is already the name of an argument',
+        'Tried to declare identifier $name, but it is already the name of an '
+        'argument',
       );
     }
     // TODO check global constants
     if (_callStack.last.constBindings[name] != null) {
       _throwRuntimeError(
-        'Tried to declare identifier $name, but it has already been declared as a constant',
+        'Tried to declare identifier $name, but it has already been declared '
+        'as a constant',
       );
     }
     if (_callStack.last.varBindings[name] != null) {
       _throwRuntimeError(
-        'Tried to declare identifier $name, but it has already been declared as a variable',
+        'Tried to declare identifier $name, but it has already been declared '
+        'as a variable',
       );
     }
     _callStack.last.varBindings[name] = val;
