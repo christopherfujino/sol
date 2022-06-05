@@ -356,9 +356,20 @@ class Context {
 
   void setVar(String name, Val val) {
     // verify name not already used
+    if (_callStack.last.arguments[name] != null) {
+      _throwRuntimeError(
+        'Tried to declare identifier $name, but it is already the name of an argument',
+      );
+    }
+    // TODO check global constants
+    if (_callStack.last.constBindings[name] != null) {
+      _throwRuntimeError(
+        'Tried to declare identifier $name, but it has already been declared as a constant',
+      );
+    }
     if (_callStack.last.varBindings[name] != null) {
       _throwRuntimeError(
-        'Tried to declare identifier $name, but it already exists',
+        'Tried to declare identifier $name, but it has already been declared as a variable',
       );
     }
     _callStack.last.varBindings[name] = val;
@@ -376,7 +387,6 @@ class Context {
   }
 
   void setArg(String name, Val val) {
-    // TODO verify name not already used
     _callStack.last.arguments[name] = val;
   }
 
