@@ -72,7 +72,7 @@ class Interpreter {
       return;
     }
     if (stmt is ReturnStmt) {
-      ctx.returnValue = await _expr(stmt.returnValue, ctx);
+      ctx.returnValue = await _expr(stmt.returnValue);
       return;
     }
     if (stmt is BareStmt) {
@@ -107,10 +107,7 @@ class Interpreter {
   Future<void> _conditionalChainStmt(ConditionalChainStmt statement) async {
     final BoolVal ifCondition;
     try {
-      ifCondition = await _expr<BoolVal>(
-        statement.ifStmt.expr,
-        ctx,
-      );
+      ifCondition = await _expr<BoolVal>(statement.ifStmt.expr);
     } on TypeError catch (err) {
       // TODO make nicer message
       _throwRuntimeError('foo ${statement.ifStmt.expr}\n$err');
@@ -121,7 +118,7 @@ class Interpreter {
       if (statement.elseIfStmts != null) {
         bool hitAnElseIf = false;
         for (final ElseIfStmt stmt in statement.elseIfStmts!) {
-          final BoolVal condition = await _expr<BoolVal>(stmt.expr, ctx);
+          final BoolVal condition = await _expr<BoolVal>(stmt.expr);
           if (condition.val) {
             hitAnElseIf = true;
             await _block(stmt.block);
@@ -136,20 +133,20 @@ class Interpreter {
   }
 
   Future<void> _bareStmt(BareStmt statement, Context ctx) async {
-    await _expr(statement.expression, ctx);
+    await _expr(statement.expression);
   }
 
   Future<void> _varDeclStmt(VarDeclStmt stmt, Context ctx) async {
-    final Val val = await _expr<Val>(stmt.expr, ctx);
+    final Val val = await _expr<Val>(stmt.expr);
     ctx.setVar(stmt.name, val);
   }
 
   Future<void> _assignStmt(AssignStmt stmt) async {
-    final Val val = await _expr<Val>(stmt.expr, ctx);
+    final Val val = await _expr<Val>(stmt.expr);
     ctx.resetVar(stmt.name, val);
   }
 
-  Future<T> _expr<T extends Val>(Expr expr, Context ctx) {
+  Future<T> _expr<T extends Val>(Expr expr) {
     if (expr is CallExpr) {
       return _callExpr<T>(expr, ctx);
     }
@@ -175,7 +172,7 @@ class Interpreter {
     }
 
     if (expr is BinaryExpr) {
-      return _binaryExpr<T>(expr, ctx);
+      return _binaryExpr<T>(expr);
     }
 
     if (expr is TypeCast) {
@@ -187,7 +184,7 @@ class Interpreter {
   Future<T> _callExpr<T extends Val>(CallExpr expr, Context ctx) async {
     final List<Val> args = <Val>[];
     for (final Expr expr in expr.argList) {
-      args.add(await _expr(expr, ctx));
+      args.add(await _expr(expr));
     }
 
     final FuncDecl? func =
@@ -204,7 +201,7 @@ class Interpreter {
   Future<Val> _typeCast(TypeCast expr, Context ctx) async {
     switch (expr.type) {
       case TypeRef.string:
-        final Val val = await _expr(expr.expr, ctx);
+        final Val val = await _expr(expr.expr);
         return StringVal(val.toString());
       default:
         throw UnimplementedError('Cast to type ${expr.type} not implemented');
@@ -292,9 +289,9 @@ class Interpreter {
     }
   }
 
-  Future<T> _binaryExpr<T extends Val>(BinaryExpr expr, Context ctx) async {
-    final Val leftVal = await _expr(expr.left, ctx);
-    final Val rightVal = await _expr(expr.right, ctx);
+  Future<T> _binaryExpr<T extends Val>(BinaryExpr expr) async {
+    final Val leftVal = await _expr(expr.left);
+    final Val rightVal = await _expr(expr.right);
     // TODO lift check to compiler
     if (leftVal.type != rightVal.type) {
       _throwRuntimeError(
@@ -357,7 +354,7 @@ class Interpreter {
     final List<Val> elements = <Val>[];
     for (final Expr element in listLiteral.elements) {
       // expressions must be evaluated in order
-      elements.add(await _expr(element, ctx));
+      elements.add(await _expr(element));
     }
     return ListVal(
       _typeRefToValType(listLiteral.type),
