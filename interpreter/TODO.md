@@ -1,5 +1,9 @@
 # Sol Language TODO
 
+## Next
+
+- [ ] Differentiate var declaration and re-assignment
+- [ ] Structures!
 
 ## Long-term
 
