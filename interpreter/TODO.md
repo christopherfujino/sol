@@ -2,7 +2,6 @@
 
 ## Next
 
-- [ ] comparison expressions
 - [ ] while loops
 - [ ] for loops
 - [ ] logical keywords/operators
@@ -20,3 +19,4 @@
 
 - [x] Differentiate var declaration and re-assignment
 - [x] if, else if, and else
+- [x] comparison expressions
