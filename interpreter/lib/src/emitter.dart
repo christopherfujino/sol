@@ -17,4 +17,8 @@ class InterpreterMessage extends EmitMessage {
   String toString() => message;
 }
 
+/// A simple callback passed by a frontend to the backend for emitting messages.
+///
+/// A frontend can halt execution of the backend by (asynchronously) returning
+/// an [Exception] from its [Emitter].
 typedef Emitter = Future<Exception?> Function(EmitMessage msg)?;
