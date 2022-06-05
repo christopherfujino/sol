@@ -102,4 +102,14 @@ Future<void> main() async {
       contains('1'),
     );
   });
+
+  test('control flow works', () async {
+    final TestInterpreter interpreter =
+        await createInterpreter('test/source_files/control_flow.sol');
+    await interpreter.interpret();
+    expect(
+      interpreter.stdoutBuffer.toString().split('\n'),
+      containsAllInOrder(<String>['reachable 1', 'reachable 2', 'reachable 3']),
+    );
+  });
 }

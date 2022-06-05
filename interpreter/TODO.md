@@ -2,6 +2,8 @@
 
 ## Next
 
+- [ ] while loops
+- [ ] for loops
 - [ ] Structures!
 
 ## Long-term
@@ -14,3 +16,4 @@
 ## Done
 
 - [x] Differentiate var declaration and re-assignment
+- [x] if, else if, and else

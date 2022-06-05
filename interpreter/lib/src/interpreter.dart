@@ -66,7 +66,11 @@ class Interpreter {
     await _executeFunc(mainFunc, args, ctx);
   }
 
-  Future<void> _stmt(Stmt stmt, Context ctx) async {
+  Future<void> _stmt(final Stmt stmt, final Context ctx) async {
+    if (stmt is ConditionalChainStmt) {
+      await _conditionalChainStmt(stmt);
+      return;
+    }
     if (stmt is ReturnStmt) {
       ctx.returnValue = await _expr(stmt.returnValue, ctx);
       return;
@@ -100,52 +104,81 @@ class Interpreter {
     }
   }
 
+  Future<void> _conditionalChainStmt(ConditionalChainStmt statement) async {
+    final BoolVal ifCondition = await _expr<BoolVal>(
+      statement.ifStmt.expr,
+      ctx,
+    );
+    if (ifCondition.val) {
+      await _block(statement.ifStmt.block);
+    } else {
+      if (statement.elseIfStmts != null) {
+        bool hitAnElseIf = false;
+        for (final ElseIfStmt stmt in statement.elseIfStmts!) {
+          final BoolVal condition = await _expr<BoolVal>(stmt.expr, ctx);
+          if (condition.val) {
+            hitAnElseIf = true;
+            await _block(stmt.block);
+            break;
+          }
+        }
+        if (!hitAnElseIf && statement.elseStmt != null) {
+          await _block(statement.elseStmt!.block);
+        }
+      }
+    }
+  }
+
   Future<void> _bareStmt(BareStmt statement, Context ctx) async {
     await _expr(statement.expression, ctx);
   }
 
   Future<void> _varDeclStmt(VarDeclStmt stmt, Context ctx) async {
-    final Val val = (await _expr(stmt.expr, ctx))!;
+    final Val val = await _expr<Val>(stmt.expr, ctx);
     ctx.setVar(stmt.name, val);
   }
 
   Future<void> _assignStmt(AssignStmt stmt) async {
-    final Val val = (await _expr(stmt.expr, ctx))!;
+    final Val val = await _expr<Val>(stmt.expr, ctx);
     ctx.resetVar(stmt.name, val);
   }
 
-  Future<Val?> _expr(Expr expr, Context ctx) {
+  Future<T> _expr<T extends Val?>(Expr expr, Context ctx) {
     if (expr is CallExpr) {
-      return _callExpr(expr, ctx);
+      return _callExpr<T>(expr, ctx);
     }
 
     if (expr is ListLiteral) {
-      return _list(expr, ctx);
+      return _list(expr, ctx) as Future<T>;
     }
 
     if (expr is StringLiteral) {
-      return _stringLiteral(expr);
+      return _stringLiteral(expr) as Future<T>;
+    }
+
+    if (expr is BoolLiteral) {
+      return _boolLiteral(expr) as Future<T>;
     }
 
     if (expr is NumLiteral) {
-      return _numLiteral(expr);
+      return _numLiteral(expr) as Future<T>;
     }
 
     if (expr is IdentifierRef) {
-      return _resolveIdentifier(expr, ctx);
+      return _resolveIdentifier(expr, ctx) as Future<T>;
     }
 
     if (expr is BinaryExpr) {
-      return _binaryExpr(expr, ctx);
+      return _binaryExpr(expr, ctx) as Future<T>;
     }
 
     if (expr is TypeCast) {
-      return _typeCast(expr, ctx);
+      return _typeCast(expr, ctx) as Future<T>;
     }
     _throwRuntimeError('Unimplemented expression type $expr');
   }
 
-  Future<Val?> _callExpr(CallExpr expr, Context ctx) async {
+  Future<T> _callExpr<T extends Val?>(CallExpr expr, Context ctx) async {
     final List<Val> args = <Val>[];
     for (final Expr expr in expr.argList) {
       args.add((await _expr(expr, ctx))!);
@@ -158,7 +191,7 @@ class Interpreter {
       _throwRuntimeError('Tried to call undeclared function ${expr.name}');
     }
 
-    return _executeFunc(func, args, ctx);
+    return _executeFunc<T>(func, args, ctx);
   }
 
   Future<Val?> _typeCast(TypeCast expr, Context ctx) async {
@@ -171,7 +204,11 @@ class Interpreter {
     }
   }
 
-  Future<Val?> _executeFunc(FuncDecl func, List<Val> args, Context ctx) async {
+  Future<T> _executeFunc<T extends Val?>(
+    FuncDecl func,
+    List<Val> args,
+    Context ctx,
+  ) async {
     await emit('Executing $func');
     ctx.pushFrame();
 
@@ -195,13 +232,10 @@ class Interpreter {
         ctx: ctx,
       );
     } else {
-      // TODO interpret higher level control flow
-      for (final Stmt stmt in func.statements) {
-        await _stmt(stmt, ctx);
-      }
+      await _block(func.statements);
     }
 
-    final Val? returnVal = ctx.popFrame().returnVal;
+    final T returnVal = ctx.popFrame().returnVal as T;
     // validate return value type
     final ValType definedType = _typeRefToValType(func.returnType);
     final ValType actualType = returnVal?.type ?? ValType.nothing;
@@ -212,6 +246,12 @@ class Interpreter {
       );
     }
     return returnVal;
+  }
+
+  Future<void> _block(Iterable<Stmt> statements) async {
+    for (final Stmt stmt in statements) {
+      await _stmt(stmt, ctx);
+    }
   }
 
   Future<Val> _resolveIdentifier(
@@ -276,6 +316,12 @@ class Interpreter {
     return ListVal(
       _typeRefToValType(listLiteral.type),
       elements,
+    );
+  }
+
+  Future<BoolVal> _boolLiteral(BoolLiteral expr) {
+    return Future<BoolVal>.value(
+      BoolVal(expr.value),
     );
   }
 
@@ -436,6 +482,7 @@ class ValType {
   static const ValType string = ValType._('String');
   static const ValType number = ValType._('Number');
   static const ValType nothing = ValType._('Nothing');
+  static const ValType boolean = ValType._('Boolean');
 
   @override
   String toString() => 'ValType: $name';
@@ -466,6 +513,22 @@ abstract class Val {
   const Val(this.type);
 
   final ValType type;
+}
+
+class BoolVal extends Val {
+  factory BoolVal(bool val) {
+    return val ? trueVal : falseVal;
+  }
+
+  const BoolVal._(this.val) : super(ValType.boolean);
+
+  static const BoolVal trueVal = BoolVal._(true);
+  static const BoolVal falseVal = BoolVal._(false);
+
+  final bool val;
+
+  @override
+  String toString() => val.toString();
 }
 
 class StringVal extends Val {

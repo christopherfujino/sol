@@ -1,3 +1,5 @@
+import 'package:meta/meta.dart';
+
 import 'scanner.dart';
 import 'source_code.dart';
 
@@ -120,14 +122,8 @@ class Parser {
       _consume(TokenType.arrow);
       returnType = _typeExpr();
     }
-    _consume(TokenType.openCurlyBracket);
 
-    final List<Stmt> statements = <Stmt>[];
-    while (_currentToken!.type != TokenType.closeCurlyBracket) {
-      statements.add(_stmt());
-    }
-    _consume(TokenType.closeCurlyBracket);
-
+    final Iterable<Stmt> statements = _block();
     return FuncDecl(
       name: name.value,
       params: params,
@@ -136,7 +132,22 @@ class Parser {
     );
   }
 
+  Iterable<Stmt> _block() {
+    _consume(TokenType.openCurlyBracket);
+
+    final List<Stmt> statements = <Stmt>[];
+    while (_currentToken!.type != TokenType.closeCurlyBracket) {
+      statements.add(_stmt());
+    }
+    _consume(TokenType.closeCurlyBracket);
+
+    return statements;
+  }
+
   Stmt _stmt() {
+    if (_currentToken!.type == TokenType.ifKeyword) {
+      return _conditionalChainStmt();
+    }
     if (_currentToken!.type == TokenType.returnKeyword) {
       return _returnStmt();
     }
@@ -157,6 +168,46 @@ class Parser {
     final Expr expression = _expr();
     _consume(TokenType.semicolon);
     return BareStmt(expression: expression);
+  }
+
+  ConditionalChainStmt _conditionalChainStmt() {
+    final IfStmt ifStmt;
+    List<ElseIfStmt>? elseIfStmts;
+    ElseStmt? elseStmt;
+
+    // If, required
+    _consume(TokenType.ifKeyword);
+    final Expr ifExpr = _expr();
+    final Iterable<Stmt> ifBlock = _block();
+    ifStmt = IfStmt(ifExpr, ifBlock);
+
+    // Else if, zero or more times
+    while (_tokenLookahead(<TokenType>[
+      TokenType.elseKeyword,
+      TokenType.ifKeyword,
+    ])) {
+      _consume(TokenType.elseKeyword);
+      _consume(TokenType.ifKeyword);
+
+      elseIfStmts ??= <ElseIfStmt>[];
+
+      final Expr elseIfExpr = _expr();
+      final Iterable<Stmt> elseIfBlock = _block();
+
+      elseIfStmts.add(ElseIfStmt(elseIfExpr, elseIfBlock));
+    }
+
+    // Else, zero or one time, must be last
+    if (_currentToken!.type == TokenType.elseKeyword) {
+      _consume(TokenType.elseKeyword);
+      elseStmt = ElseStmt(_block());
+    }
+
+    return ConditionalChainStmt(
+      ifStmt: ifStmt,
+      elseIfStmts: elseIfStmts,
+      elseStmt: elseStmt,
+    );
   }
 
   ReturnStmt _returnStmt() {
@@ -269,12 +320,15 @@ class Parser {
       return _callExpr();
     }
 
+    if (_currentToken!.type == TokenType.booleanLiteral) {
+      return _boolLiteral();
+    }
+
     if (_currentToken!.type == TokenType.numberLiteral) {
       return _numberLiteral();
     }
 
-    // Types
-    {
+    if (_currentToken!.type == TokenType.type) {
       if (_tokenLookahead(const <TokenType>[
         TokenType.type,
         TokenType.openSquareBracket,
@@ -289,9 +343,7 @@ class Parser {
         return _typeCast();
       }
 
-      if (_currentToken!.type == TokenType.type) {
-        return _typeExpr();
-      }
+      return _typeExpr();
     }
 
     // This should be last
@@ -400,6 +452,20 @@ class Parser {
     return list;
   }
 
+  BoolLiteral _boolLiteral() {
+    final StringToken token = _consume(TokenType.booleanLiteral) as StringToken;
+    if (token.value == 'true') {
+      return const BoolLiteral(true);
+    } else if (token.value == 'false') {
+      return const BoolLiteral(false);
+    } else {
+      _throwParseError(
+        token,
+        'Invalid string value "${token.value}" for a boolean literal token',
+      );
+    }
+  }
+
   StringLiteral _stringLiteral() {
     final StringToken token = _consume(TokenType.stringLiteral) as StringToken;
     return StringLiteral(token.value);
@@ -414,14 +480,14 @@ class Parser {
   ///
   /// Throws [ParseError] if the type is not correct.
   Token _consume(TokenType type) {
-    _previousToken = _currentToken;
     // this should only be called if you know what's there.
-    if (_previousToken!.type != type) {
+    if (_currentToken!.type != type) {
       _throwParseError(
-        _previousToken,
-        'Expected a ${type.name}, got a ${_previousToken!.type.name}',
+        _currentToken,
+        'Expected a ${type.name}, got a ${_currentToken!.type.name}',
       );
     }
+    _previousToken = _currentToken;
     _index += 1;
     return _previousToken!;
   }
@@ -474,7 +540,7 @@ class FuncDecl extends Decl {
     this.returnType,
   });
 
-  final List<Stmt> statements;
+  final Iterable<Stmt> statements;
   final List<Parameter> params;
   final TypeRef? returnType;
 
@@ -491,6 +557,7 @@ class FuncDecl extends Decl {
   }
 }
 
+@immutable
 abstract class Stmt {
   const Stmt();
 }
@@ -536,8 +603,43 @@ class BareStmt extends Stmt {
   }
 }
 
+/// Wraps a single opening if statement (with block), zero or more else if
+/// statements, and an optional final else statement.
+class ConditionalChainStmt extends Stmt {
+  const ConditionalChainStmt({
+    required this.ifStmt,
+    this.elseIfStmts,
+    this.elseStmt,
+  });
+
+  final IfStmt ifStmt;
+  final Iterable<ElseIfStmt>? elseIfStmts;
+  final ElseStmt? elseStmt;
+}
+
+class IfStmt extends Stmt {
+  const IfStmt(this.expr, this.block);
+
+  final Expr expr;
+  final Iterable<Stmt> block;
+}
+
+class ElseIfStmt extends IfStmt {
+  const ElseIfStmt(super.expr, super.block);
+}
+
+class ElseStmt extends Stmt {
+  const ElseStmt(this.block);
+
+  final Iterable<Stmt> block;
+}
+
+@immutable
 abstract class Expr {
   const Expr();
+
+  // TODO create compiled version with a static type
+  // TODO track token
 }
 
 class NothingExpr extends Expr {
@@ -663,13 +765,22 @@ class IdentifierRef extends Expr {
   String toString() => name;
 }
 
+class BoolLiteral extends Expr {
+  const BoolLiteral(this.value);
+
+  final bool value;
+
+  @override
+  String toString() => '$value';
+}
+
 class StringLiteral extends Expr {
   const StringLiteral(this.value);
 
   final String value;
 
   @override
-  String toString() => '"value"';
+  String toString() => '"$value"';
 }
 
 class NumLiteral extends Expr {

@@ -4,5 +4,6 @@ environment:
   sdk: '>=2.17.0 <3.0.0'
 dependencies:
   args: any
+  meta: any
 dev_dependencies:
   test: any

@@ -1,3 +1,4 @@
+import 'parser.dart';
 import 'source_code.dart';
 
 enum TokenType {
@@ -14,6 +15,14 @@ enum TokenType {
 
   /// Keyword "return".
   returnKeyword,
+
+  /// Keyword "if".
+  ifKeyword,
+
+  /// Keyword "else".
+  ///
+  /// Can be chained as "else if" to be semantically distinct.
+  elseKeyword,
 
   // operators
 
@@ -57,6 +66,7 @@ enum TokenType {
   identifier,
   stringLiteral,
   numberLiteral,
+  booleanLiteral,
 
   /// Either primitive or user defined type.
   type,
@@ -137,22 +147,20 @@ class Scanner {
         continue;
       }
 
-      if (_scanKeyword()) {
-        continue;
-      }
-
       // handle brackets (parens, square, and curly)
       if (_scanBracket()) {
         continue;
       }
 
-      if (_scanString()) {
+      if (_scanKeyword()) {
         continue;
       }
 
-      // handle named identifiers--must run after [_scanKeyword()],
-      // [_scanString()]
-      if (_scanIdentifier()) {
+      if (_scanBoolean()) {
+        continue;
+      }
+
+      if (_scanString()) {
         continue;
       }
 
@@ -161,6 +169,12 @@ class Scanner {
       }
 
       if (_scanTypeName()) {
+        continue;
+      }
+
+      // handle named identifiers--must run after [_scanKeyword()],
+      // [_scanString()]
+      if (_scanIdentifier()) {
         continue;
       }
 
@@ -180,6 +194,8 @@ Last scanned token: ${_tokenList.last}
   bool _scanKeyword() {
     // TODO this can be faster, use linear search, not [.startsWith()]
     final String rest = source.substring(_index);
+
+    // We have to use [kIdentifierPattern] or else we would get false positives
     final Match? match = kIdentifierPattern.matchAsPrefix(rest);
     if (match == null) {
       return false;
@@ -199,6 +215,12 @@ Last scanned token: ${_tokenList.last}
       case 'return':
         tokenType = TokenType.returnKeyword;
         break;
+      case 'if':
+        tokenType = TokenType.ifKeyword;
+        break;
+      case 'else':
+        tokenType = TokenType.elseKeyword;
+        break;
       default:
         return false;
     }
@@ -210,6 +232,30 @@ Last scanned token: ${_tokenList.last}
       ),
     );
     _index += keyword.length;
+    return true;
+  }
+
+  bool _scanBoolean() {
+    // TODO this can be faster, use linear search, not [.startsWith()]
+    final String rest = source.substring(_index);
+
+    // We have to use [kIdentifierPattern] or else we would get false positives
+    // with identifiers that start with a bool name, such as trueString.
+    final Match? match = kIdentifierPattern.matchAsPrefix(rest);
+    if (match == null) {
+      return false;
+    }
+    final String matchString = match.group(0)!;
+    if (matchString != 'true' && matchString != 'false') {
+      return false;
+    }
+    _tokenList.add(StringToken(
+      type: TokenType.booleanLiteral,
+      value: matchString,
+      line: _line,
+      char: _char,
+    ));
+    _index += matchString.length;
     return true;
   }
 
@@ -292,15 +338,14 @@ Last scanned token: ${_tokenList.last}
         _index += 2;
         return true;
       }
-        _tokenList.add(
-          Token(
-            type: TokenType.minus,
-            line: _line,
-            char: _char,
-          ),
-        );
-        _index += 1;
-
+      _tokenList.add(
+        Token(
+          type: TokenType.minus,
+          line: _line,
+          char: _char,
+        ),
+      );
+      _index += 1;
     }
     return false;
   }
