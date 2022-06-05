@@ -1,4 +1,3 @@
-import 'parser.dart';
 import 'source_code.dart';
 
 enum TokenType {
@@ -37,6 +36,9 @@ enum TokenType {
 
   /// Operator ">"
   greaterThan,
+
+  /// Operator "<"
+  lessThan,
 
   /// Operator "+".
   plus,
@@ -314,6 +316,17 @@ Last scanned token: ${_tokenList.last}
       _tokenList.add(
         Token(
           type: TokenType.greaterThan,
+          line: _line,
+          char: _char,
+        ),
+      );
+      _index += 1;
+      return true;
+    }
+    if (source[_index] == '<') {
+      _tokenList.add(
+        Token(
+          type: TokenType.lessThan,
           line: _line,
           char: _char,
         ),

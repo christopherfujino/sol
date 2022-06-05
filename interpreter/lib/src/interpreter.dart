@@ -325,7 +325,13 @@ class Interpreter {
         }
         // safe cast because of the type check at the start of this function
         return BoolVal(leftVal.val > (rightVal as NumVal).val) as T;
-        //return BoolVal(!leftVal.equalsTo(rightVal)) as T;
+      case TokenType.lessThan:
+        if (leftVal is! NumVal) {
+          // TODO compiler error
+          _throwRuntimeError('< operator can only be used on numbers');
+        }
+        // safe cast because of the type check at the start of this function
+        return BoolVal(leftVal.val < (rightVal as NumVal).val) as T;
       default:
         throw UnimplementedError(
           "Don't know how to calculate ${expr.operatorToken}",

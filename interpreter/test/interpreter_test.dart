@@ -123,6 +123,7 @@ Future<void> main() async {
         'reachable 1',
         'reachable 2',
         'reachable 3',
+        'reachable 4',
       ]),
     );
   });

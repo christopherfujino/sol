@@ -279,7 +279,8 @@ class Parser {
   Expr _comparison() {
     /// TODO [ComparisonExpr]
     Expr leftSide = _term();
-    while (_currentToken!.type == TokenType.greaterThan) {
+    while (_currentToken!.type == TokenType.greaterThan ||
+        _currentToken!.type == TokenType.lessThan) {
       leftSide = BinaryExpr(
         leftSide,
         _consume(_currentToken!.type),
