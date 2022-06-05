@@ -66,7 +66,7 @@ class Interpreter {
     await _executeFunc(mainFunc, args, ctx);
   }
 
-  Future<void> _stmt(final Stmt stmt, final Context ctx) async {
+  Future<void> _stmt(final Stmt stmt) async {
     if (stmt is ConditionalChainStmt) {
       await _conditionalChainStmt(stmt);
       return;
@@ -257,7 +257,7 @@ class Interpreter {
 
   Future<void> _block(Iterable<Stmt> statements) async {
     for (final Stmt stmt in statements) {
-      await _stmt(stmt, ctx);
+      await _stmt(stmt);
     }
   }
 
