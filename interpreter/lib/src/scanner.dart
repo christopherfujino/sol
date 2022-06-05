@@ -35,6 +35,9 @@ enum TokenType {
   /// Operator "!=".
   notEquals,
 
+  /// Operator ">"
+  greaterThan,
+
   /// Operator "+".
   plus,
 
@@ -300,6 +303,17 @@ Last scanned token: ${_tokenList.last}
       _tokenList.add(
         Token(
           type: TokenType.divide,
+          line: _line,
+          char: _char,
+        ),
+      );
+      _index += 1;
+      return true;
+    }
+    if (source[_index] == '>') {
+      _tokenList.add(
+        Token(
+          type: TokenType.greaterThan,
           line: _line,
           char: _char,
         ),

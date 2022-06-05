@@ -108,8 +108,8 @@ Future<void> main() async {
         await createInterpreter('test/source_files/control_flow.sol');
     await interpreter.interpret();
     expect(
-      interpreter.stdoutBuffer.toString().split('\n'),
-      containsAllInOrder(<String>['reachable 1', 'reachable 2', 'reachable 3']),
+      interpreter.stdoutBuffer.toString().trim().split('\n'),
+      orderedEquals(<String>['reachable 1', 'reachable 2', 'reachable 3']),
     );
   });
 
@@ -119,7 +119,7 @@ Future<void> main() async {
     await interpreter.interpret();
     expect(
       interpreter.stdoutBuffer.toString().trim().split('\n'),
-      containsAllInOrder(<String>[
+      orderedEquals(<String>[
         'reachable 1',
         'reachable 2',
         'reachable 3',

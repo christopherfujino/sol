@@ -293,10 +293,17 @@ class Interpreter {
   }
 
   Future<T> _binaryExpr<T extends Val>(BinaryExpr expr, Context ctx) async {
+    final Val leftVal = await _expr(expr.left, ctx);
+    final Val rightVal = await _expr(expr.right, ctx);
+    // TODO lift check to compiler
+    if (leftVal.type != rightVal.type) {
+      _throwRuntimeError(
+        'The left and right hand sides of a ${expr.operatorToken} expression '
+        'do not match!',
+      );
+    }
     switch (expr.operatorToken.type) {
       case TokenType.plus:
-        final Val leftVal = await _expr(expr.left, ctx);
-        final Val rightVal = await _expr(expr.right, ctx);
         if (leftVal is NumVal && rightVal is NumVal) {
           return NumVal(leftVal.val + rightVal.val) as T;
         }
@@ -308,13 +315,17 @@ class Interpreter {
           '${rightVal.runtimeType}',
         );
       case TokenType.equals:
-        final Val leftVal = await _expr(expr.left, ctx);
-        final Val rightVal = await _expr(expr.right, ctx);
         return BoolVal(leftVal.equalsTo(rightVal)) as T;
       case TokenType.notEquals:
-        final Val leftVal = await _expr(expr.left, ctx);
-        final Val rightVal = await _expr(expr.right, ctx);
         return BoolVal(!leftVal.equalsTo(rightVal)) as T;
+      case TokenType.greaterThan:
+        if (leftVal is! NumVal) {
+          // TODO compiler error
+          _throwRuntimeError('> operator can only be used on numbers');
+        }
+        // safe cast because of the type check at the start of this function
+        return BoolVal(leftVal.val > (rightVal as NumVal).val) as T;
+        //return BoolVal(!leftVal.equalsTo(rightVal)) as T;
       default:
         throw UnimplementedError(
           "Don't know how to calculate ${expr.operatorToken}",

@@ -278,7 +278,16 @@ class Parser {
   /// term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
   Expr _comparison() {
     /// TODO [ComparisonExpr]
-    return _term();
+    Expr leftSide = _term();
+    while (_currentToken!.type == TokenType.greaterThan) {
+      leftSide = BinaryExpr(
+        leftSide,
+        _consume(_currentToken!.type),
+        _term(),
+      );
+    }
+
+    return leftSide;
   }
 
   /// factor ( ( "-" | "+" ) factor )* ;
