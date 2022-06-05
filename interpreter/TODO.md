@@ -2,12 +2,14 @@
 
 ## Next
 
+- [ ] comparison expressions
 - [ ] while loops
 - [ ] for loops
 - [ ] Structures!
 
 ## Long-term
 
+- [ ] Add debug info to parse objects
 - [ ] Add a "compile" phase, that statically analyzes the parse tree for
   correctness.
   - [ ] Each function can only return values that match the function's
