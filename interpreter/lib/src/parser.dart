@@ -141,7 +141,7 @@ class Parser {
       return _returnStmt();
     }
     if (_currentToken!.type == TokenType.variable) {
-      return _assignStmt();
+      return _varDeclStmt();
     }
     return _exprStmt();
   }
@@ -164,13 +164,13 @@ class Parser {
     return ReturnStmt(returnValue);
   }
 
-  AssignStmt _assignStmt() {
+  VarDeclStmt _varDeclStmt() {
     _consume(TokenType.variable);
     final StringToken name = _consume(TokenType.identifier) as StringToken;
     _consume(TokenType.assignment);
     final Expr expr = _expr();
     _consume(TokenType.semicolon);
-    return AssignStmt(
+    return VarDeclStmt(
       name.value,
       expr,
     );
@@ -397,8 +397,8 @@ class Parser {
   ///
   /// Throws [ParseError] if the type is not correct.
   Token _consume(TokenType type) {
-    // coerce type as this should only be called if you know what's there.
     _previousToken = _currentToken;
+    // this should only be called if you know what's there.
     if (_previousToken!.type != type) {
       _throwParseError(
         _previousToken,
@@ -474,11 +474,13 @@ abstract class Stmt {
   const Stmt();
 }
 
-class AssignStmt extends Stmt {
-  const AssignStmt(this.name, this.expr);
+/// Declaration of a variable (or constant).
+class VarDeclStmt extends Stmt {
+  const VarDeclStmt(this.name, this.expr, {this.isConstant = false});
 
   final String name;
   final Expr expr;
+  final bool isConstant;
 }
 
 /// Interface for [ReturnStmt], etc.

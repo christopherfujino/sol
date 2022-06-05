@@ -77,8 +77,8 @@ class Interpreter {
       await _bareStmt(stmt, ctx);
       return;
     }
-    if (stmt is AssignStmt) {
-      await _assignStmt(stmt, ctx);
+    if (stmt is VarDeclStmt) {
+      await _varDeclStmt(stmt, ctx);
       return;
     }
     _throwRuntimeError('Unimplemented statement type ${stmt.runtimeType}');
@@ -102,7 +102,7 @@ class Interpreter {
     await _expr(statement.expression, ctx);
   }
 
-  Future<void> _assignStmt(AssignStmt stmt, Context ctx) async {
+  Future<void> _varDeclStmt(VarDeclStmt stmt, Context ctx) async {
     final Val val = (await _expr(stmt.expr, ctx))!;
     ctx.setVar(stmt.name, val);
   }
