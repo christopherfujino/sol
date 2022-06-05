@@ -37,8 +37,14 @@ enum TokenType {
   /// Operator ">"
   greaterThan,
 
+  /// Operator ">="
+  greaterOrEqual,
+
   /// Operator "<"
   lessThan,
+
+  /// Operator "<="
+  lessOrEqual,
 
   /// Operator "+".
   plus,
@@ -313,6 +319,18 @@ Last scanned token: ${_tokenList.last}
       return true;
     }
     if (source[_index] == '>') {
+      if (source[_index + 1] == '=') {
+        _tokenList.add(
+          Token(
+            type: TokenType.greaterOrEqual,
+            line: _line,
+            char: _char,
+          ),
+        );
+        _index += 2;
+        return true;
+      }
+
       _tokenList.add(
         Token(
           type: TokenType.greaterThan,
@@ -324,6 +342,18 @@ Last scanned token: ${_tokenList.last}
       return true;
     }
     if (source[_index] == '<') {
+      if (source[_index + 1] == '=') {
+        _tokenList.add(
+          Token(
+            type: TokenType.lessOrEqual,
+            line: _line,
+            char: _char,
+          ),
+        );
+        _index += 2;
+        return true;
+      }
+
       _tokenList.add(
         Token(
           type: TokenType.lessThan,
