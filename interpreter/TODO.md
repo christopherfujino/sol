@@ -6,6 +6,7 @@
 - [ ] for loops
 - [ ] logical keywords/operators
 - [ ] Structures!
+- [ ] += (et al) operators
 
 ## Long-term
 
