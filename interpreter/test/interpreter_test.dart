@@ -131,4 +131,18 @@ Future<void> main() async {
       ]),
     );
   });
+
+  test('while loop works', () async {
+    final TestInterpreter interpreter =
+        await createInterpreter('test/source_files/while_loop.sol');
+    await interpreter.interpret();
+    expect(
+      interpreter.stdoutBuffer.toString().trim().split('\n'),
+      orderedEquals(<String>[
+        '0',
+        '1',
+        '2',
+      ]),
+    );
+  });
 }

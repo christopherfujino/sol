@@ -68,24 +68,23 @@ class Interpreter {
 
   Future<void> _stmt(final Stmt stmt) async {
     if (stmt is ConditionalChainStmt) {
-      await _conditionalChainStmt(stmt);
-      return;
+      return _conditionalChainStmt(stmt);
+    }
+    if (stmt is WhileStmt) {
+      return _whileStmt(stmt);
     }
     if (stmt is ReturnStmt) {
       ctx.returnValue = await _expr(stmt.returnValue);
       return;
     }
     if (stmt is BareStmt) {
-      await _bareStmt(stmt, ctx);
-      return;
+      return _bareStmt(stmt, ctx);
     }
     if (stmt is VarDeclStmt) {
-      await _varDeclStmt(stmt, ctx);
-      return;
+      return _varDeclStmt(stmt, ctx);
     }
     if (stmt is AssignStmt) {
-      await _assignStmt(stmt);
-      return;
+      return _assignStmt(stmt);
     }
     _throwRuntimeError('Unimplemented statement type ${stmt.runtimeType}');
   }
@@ -129,6 +128,12 @@ class Interpreter {
           await _block(statement.elseStmt!.block);
         }
       }
+    }
+  }
+
+  Future<void> _whileStmt(WhileStmt stmt) async {
+    while ((await _expr<BoolVal>(stmt.condition)).val) {
+      await _block(stmt.block);
     }
   }
 

@@ -148,6 +148,9 @@ class Parser {
     if (_currentToken!.type == TokenType.ifKeyword) {
       return _conditionalChainStmt();
     }
+    if (_currentToken!.type == TokenType.whileKeyword) {
+      return _whileStmt();
+    }
     if (_currentToken!.type == TokenType.returnKeyword) {
       return _returnStmt();
     }
@@ -208,6 +211,13 @@ class Parser {
       elseIfStmts: elseIfStmts,
       elseStmt: elseStmt,
     );
+  }
+
+  WhileStmt _whileStmt() {
+    _consume(TokenType.whileKeyword);
+    final Expr condition = _expr();
+    final Iterable<Stmt> block = _block();
+    return WhileStmt(condition, block);
   }
 
   ReturnStmt _returnStmt() {
@@ -635,6 +645,13 @@ class ConditionalChainStmt extends Stmt {
   final IfStmt ifStmt;
   final Iterable<ElseIfStmt>? elseIfStmts;
   final ElseStmt? elseStmt;
+}
+
+class WhileStmt extends Stmt {
+  const WhileStmt(this.condition, this.block);
+
+  final Expr condition;
+  final Iterable<Stmt> block;
 }
 
 class IfStmt extends Stmt {
