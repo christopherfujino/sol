@@ -81,6 +81,10 @@ class Interpreter {
       await _varDeclStmt(stmt, ctx);
       return;
     }
+    if (stmt is AssignStmt) {
+      await _assignStmt(stmt);
+      return;
+    }
     _throwRuntimeError('Unimplemented statement type ${stmt.runtimeType}');
   }
 
@@ -105,6 +109,11 @@ class Interpreter {
   Future<void> _varDeclStmt(VarDeclStmt stmt, Context ctx) async {
     final Val val = (await _expr(stmt.expr, ctx))!;
     ctx.setVar(stmt.name, val);
+  }
+
+  Future<void> _assignStmt(AssignStmt stmt) async {
+    final Val val = (await _expr(stmt.expr, ctx))!;
+    ctx.resetVar(stmt.name, val);
   }
 
   Future<Val?> _expr(Expr expr, Context ctx) {
@@ -161,7 +170,6 @@ class Interpreter {
         return StringVal(val.toString());
       default:
         throw UnimplementedError('Cast to type ${expr.type} not implemented');
-
     }
   }
 
@@ -349,7 +357,23 @@ class Context {
   }
 
   void setVar(String name, Val val) {
-    // TODO verify name not already used
+    // verify name not already used
+    if (_callStack.last.varBindings[name] != null) {
+      _throwRuntimeError(
+        'Tried to declare identifier $name, but it already exists',
+      );
+    }
+    _callStack.last.varBindings[name] = val;
+  }
+
+  void resetVar(String name, Val val) {
+    // verify already exists as a var
+    final Val? prevVal = _callStack.last.varBindings[name];
+    if (prevVal == null) {
+      _throwRuntimeError(
+        '$name is not a variable',
+      );
+    }
     _callStack.last.varBindings[name] = val;
   }
 

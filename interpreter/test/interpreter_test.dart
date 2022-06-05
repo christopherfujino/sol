@@ -11,6 +11,19 @@ import 'common.dart';
 Future<void> main() async {
   late final io.Directory tempDir;
 
+  Future<TestInterpreter> createInterpreter(String path) async {
+    final SourceCode sourceCode =
+        SourceCode(await io.File(path).readAsString());
+    final List<Token> tokenList =
+        await Scanner.fromSourceCode(sourceCode).scan();
+    final ParseTree tree =
+        await Parser(tokenList: tokenList, entrySourceCode: sourceCode).parse();
+    return TestInterpreter(
+      parseTree: tree,
+      ctx: Context(workingDir: tempDir),
+    );
+  }
+
   setUpAll(() async {
     tempDir = await io.Directory.systemTemp.createTemp('interpreter_test');
   });
@@ -25,46 +38,24 @@ Future<void> main() async {
       <String>['init'],
       workingDirectory: tempDir.absolute.path,
     );
-    final SourceCode sourceCode = SourceCode(
-        await io.File('test/source_files/git_submodule_init.sol')
-            .readAsString());
-    final List<Token> tokenList =
-        await Scanner.fromSourceCode(sourceCode).scan();
-    final ParseTree tree =
-        await Parser(tokenList: tokenList, entrySourceCode: sourceCode).parse();
 
-    await TestInterpreter(
-      parseTree: tree,
-      ctx: Context(workingDir: tempDir),
-    ).interpret();
+    await (await createInterpreter('test/source_files/git_submodule_init.sol'))
+        .interpret();
   });
 
   test('comments are skipped', () async {
-    final SourceCode sourceCode = SourceCode(
-        await io.File('test/source_files/comments.sol').readAsString());
-    final List<Token> tokenList =
-        await Scanner.fromSourceCode(sourceCode).scan();
-    final ParseTree tree =
-        await Parser(tokenList: tokenList, entrySourceCode: sourceCode).parse();
-    final TestInterpreter interpreter = TestInterpreter(
-      parseTree: tree,
-      ctx: Context(workingDir: tempDir),
-    );
+    final TestInterpreter interpreter =
+        await createInterpreter('test/source_files/comments.sol');
     await interpreter.interpret();
-    expect(interpreter.stdoutBuffer.toString().trim(), isNot(contains('hello world')));
+    expect(
+      interpreter.stdoutBuffer.toString().trim(),
+      isNot(contains('hello world')),
+    );
   });
 
   test('print prints', () async {
-    final SourceCode sourceCode = SourceCode(
-        await io.File('test/source_files/print_test.sol').readAsString());
-    final List<Token> tokenList =
-        await Scanner.fromSourceCode(sourceCode).scan();
-    final ParseTree tree =
-        await Parser(tokenList: tokenList, entrySourceCode: sourceCode).parse();
-    final TestInterpreter interpreter = TestInterpreter(
-      parseTree: tree,
-      ctx: Context(workingDir: tempDir),
-    );
+    final TestInterpreter interpreter =
+        await createInterpreter('test/source_files/print_test.sol');
     await interpreter.interpret();
     expect(
       interpreter.stdoutBuffer.toString().split('\n'),
@@ -73,16 +64,8 @@ Future<void> main() async {
   });
 
   test('function arguments and return values are passed', () async {
-    final SourceCode sourceCode = SourceCode(
-        await io.File('test/source_files/function_arguments.sol').readAsString());
-    final List<Token> tokenList =
-        await Scanner.fromSourceCode(sourceCode).scan();
-    final ParseTree tree =
-        await Parser(tokenList: tokenList, entrySourceCode: sourceCode).parse();
-    final TestInterpreter interpreter = TestInterpreter(
-      parseTree: tree,
-      ctx: Context(workingDir: tempDir),
-    );
+    final TestInterpreter interpreter =
+        await createInterpreter('test/source_files/function_arguments.sol');
     await interpreter.interpret();
     expect(
       interpreter.stdoutBuffer.toString().split('\n'),
@@ -91,16 +74,8 @@ Future<void> main() async {
   });
 
   test('String implements + operator', () async {
-    final SourceCode sourceCode = SourceCode(
-        await io.File('test/source_files/string_concatenation.sol').readAsString());
-    final List<Token> tokenList =
-        await Scanner.fromSourceCode(sourceCode).scan();
-    final ParseTree tree =
-        await Parser(tokenList: tokenList, entrySourceCode: sourceCode).parse();
-    final TestInterpreter interpreter = TestInterpreter(
-      parseTree: tree,
-      ctx: Context(workingDir: tempDir),
-    );
+    final TestInterpreter interpreter =
+        await createInterpreter('test/source_files/string_concatenation.sol');
     await interpreter.interpret();
     expect(
       interpreter.stdoutBuffer.toString().split('\n'),
@@ -109,20 +84,22 @@ Future<void> main() async {
   });
 
   test('Type coercion works', () async {
-    final SourceCode sourceCode = SourceCode(
-        await io.File('test/source_files/type_coercion.sol').readAsString());
-    final List<Token> tokenList =
-        await Scanner.fromSourceCode(sourceCode).scan();
-    final ParseTree tree =
-        await Parser(tokenList: tokenList, entrySourceCode: sourceCode).parse();
-    final TestInterpreter interpreter = TestInterpreter(
-      parseTree: tree,
-      ctx: Context(workingDir: tempDir),
-    );
+    final TestInterpreter interpreter =
+        await createInterpreter('test/source_files/type_coercion.sol');
     await interpreter.interpret();
     expect(
       interpreter.stdoutBuffer.toString().split('\n'),
       contains('42'),
+    );
+  });
+
+  test('can reassign variables', () async {
+    final TestInterpreter interpreter =
+        await createInterpreter('test/source_files/reassignment.sol');
+    await interpreter.interpret();
+    expect(
+      interpreter.stdoutBuffer.toString().split('\n'),
+      contains('1'),
     );
   });
 }

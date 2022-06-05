@@ -143,6 +143,12 @@ class Parser {
     if (_currentToken!.type == TokenType.variable) {
       return _varDeclStmt();
     }
+    if (_tokenLookahead(<TokenType>[
+      TokenType.identifier,
+      TokenType.assignment,
+    ])) {
+      return _assignStmt();
+    }
     return _exprStmt();
   }
 
@@ -171,6 +177,17 @@ class Parser {
     final Expr expr = _expr();
     _consume(TokenType.semicolon);
     return VarDeclStmt(
+      name.value,
+      expr,
+    );
+  }
+
+  AssignStmt _assignStmt() {
+    final StringToken name = _consume(TokenType.identifier) as StringToken;
+    _consume(TokenType.assignment);
+    final Expr expr = _expr();
+    _consume(TokenType.semicolon);
+    return AssignStmt(
       name.value,
       expr,
     );
@@ -481,6 +498,16 @@ class VarDeclStmt extends Stmt {
   final String name;
   final Expr expr;
   final bool isConstant;
+}
+
+/// Re-assignment of a variable.
+///
+/// It will be a compilation error if [name] resolves to a constant.
+class AssignStmt extends Stmt {
+  const AssignStmt(this.name, this.expr);
+
+  final String name;
+  final Expr expr;
 }
 
 /// Interface for [ReturnStmt], etc.

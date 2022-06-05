@@ -2,7 +2,6 @@
 
 ## Next
 
-- [ ] Differentiate var declaration and re-assignment
 - [ ] Structures!
 
 ## Long-term
@@ -11,3 +10,7 @@
   correctness.
   - [ ] Each function can only return values that match the function's
     signature.
+
+## Done
+
+- [x] Differentiate var declaration and re-assignment
