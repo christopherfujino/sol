@@ -32,6 +32,9 @@ enum TokenType {
   /// Operator "==".
   equals,
 
+  /// Operator "!=".
+  notEquals,
+
   /// Operator "+".
   plus,
 
@@ -261,6 +264,17 @@ Last scanned token: ${_tokenList.last}
 
   bool _scanOperator() {
     if (source[_index] == '!') {
+      if (source[_index + 1] == '=') {
+        _tokenList.add(
+          Token(
+            type: TokenType.notEquals,
+            line: _line,
+            char: _char,
+          ),
+        );
+        _index += 2;
+        return true;
+      }
       _tokenList.add(
         Token(
           type: TokenType.bang,

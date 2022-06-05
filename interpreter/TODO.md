@@ -5,6 +5,7 @@
 - [ ] comparison expressions
 - [ ] while loops
 - [ ] for loops
+- [ ] logical keywords/operators
 - [ ] Structures!
 
 ## Long-term

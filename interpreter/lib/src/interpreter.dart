@@ -105,10 +105,16 @@ class Interpreter {
   }
 
   Future<void> _conditionalChainStmt(ConditionalChainStmt statement) async {
-    final BoolVal ifCondition = await _expr<BoolVal>(
-      statement.ifStmt.expr,
-      ctx,
-    );
+    final BoolVal ifCondition;
+    try {
+      ifCondition = await _expr<BoolVal>(
+        statement.ifStmt.expr,
+        ctx,
+      );
+    } on TypeError catch (err) {
+      // TODO make nicer message
+      _throwRuntimeError('foo ${statement.ifStmt.expr}\n$err');
+    }
     if (ifCondition.val) {
       await _block(statement.ifStmt.block);
     } else {
@@ -143,7 +149,7 @@ class Interpreter {
     ctx.resetVar(stmt.name, val);
   }
 
-  Future<T> _expr<T extends Val?>(Expr expr, Context ctx) {
+  Future<T> _expr<T extends Val>(Expr expr, Context ctx) {
     if (expr is CallExpr) {
       return _callExpr<T>(expr, ctx);
     }
@@ -169,7 +175,7 @@ class Interpreter {
     }
 
     if (expr is BinaryExpr) {
-      return _binaryExpr(expr, ctx) as Future<T>;
+      return _binaryExpr<T>(expr, ctx);
     }
 
     if (expr is TypeCast) {
@@ -178,10 +184,10 @@ class Interpreter {
     _throwRuntimeError('Unimplemented expression type $expr');
   }
 
-  Future<T> _callExpr<T extends Val?>(CallExpr expr, Context ctx) async {
+  Future<T> _callExpr<T extends Val>(CallExpr expr, Context ctx) async {
     final List<Val> args = <Val>[];
     for (final Expr expr in expr.argList) {
-      args.add((await _expr(expr, ctx))!);
+      args.add(await _expr(expr, ctx));
     }
 
     final FuncDecl? func =
@@ -191,13 +197,14 @@ class Interpreter {
       _throwRuntimeError('Tried to call undeclared function ${expr.name}');
     }
 
-    return _executeFunc<T>(func, args, ctx);
+    final T? returnVal = await _executeFunc<T?>(func, args, ctx);
+    return returnVal ?? NothingVal.instance as T;
   }
 
-  Future<Val?> _typeCast(TypeCast expr, Context ctx) async {
+  Future<Val> _typeCast(TypeCast expr, Context ctx) async {
     switch (expr.type) {
       case TypeRef.string:
-        final Val val = (await _expr(expr.expr, ctx))!;
+        final Val val = await _expr(expr.expr, ctx);
         return StringVal(val.toString());
       default:
         throw UnimplementedError('Cast to type ${expr.type} not implemented');
@@ -285,21 +292,29 @@ class Interpreter {
     }
   }
 
-  Future<Val> _binaryExpr(BinaryExpr expr, Context ctx) async {
+  Future<T> _binaryExpr<T extends Val>(BinaryExpr expr, Context ctx) async {
     switch (expr.operatorToken.type) {
       case TokenType.plus:
-        final Val leftVal = (await _expr(expr.left, ctx))!;
-        final Val rightVal = (await _expr(expr.right, ctx))!;
+        final Val leftVal = await _expr(expr.left, ctx);
+        final Val rightVal = await _expr(expr.right, ctx);
         if (leftVal is NumVal && rightVal is NumVal) {
-          return NumVal(leftVal.val + rightVal.val);
+          return NumVal(leftVal.val + rightVal.val) as T;
         }
         if (leftVal is StringVal && rightVal is StringVal) {
-          return StringVal(leftVal.val + rightVal.val);
+          return StringVal(leftVal.val + rightVal.val) as T;
         }
         _throwRuntimeError(
           '"+" operator not implemented for types ${leftVal.runtimeType} and '
           '${rightVal.runtimeType}',
         );
+      case TokenType.equals:
+        final Val leftVal = await _expr(expr.left, ctx);
+        final Val rightVal = await _expr(expr.right, ctx);
+        return BoolVal(leftVal.equalsTo(rightVal)) as T;
+      case TokenType.notEquals:
+        final Val leftVal = await _expr(expr.left, ctx);
+        final Val rightVal = await _expr(expr.right, ctx);
+        return BoolVal(!leftVal.equalsTo(rightVal)) as T;
       default:
         throw UnimplementedError(
           "Don't know how to calculate ${expr.operatorToken}",
@@ -311,7 +326,7 @@ class Interpreter {
     final List<Val> elements = <Val>[];
     for (final Expr element in listLiteral.elements) {
       // expressions must be evaluated in order
-      elements.add((await _expr(element, ctx))!);
+      elements.add(await _expr(element, ctx));
     }
     return ListVal(
       _typeRefToValType(listLiteral.type),
@@ -435,6 +450,12 @@ class Context {
         '$name is not a variable',
       );
     }
+    if (prevVal.type != val.type) {
+      _throwRuntimeError(
+        '$name is of type ${prevVal.type}, but the assignment value $val is of '
+        'type ${val.type}',
+      );
+    }
     _callStack.last.varBindings[name] = val;
   }
 
@@ -513,6 +534,33 @@ abstract class Val {
   const Val(this.type);
 
   final ValType type;
+
+  Object? get val;
+
+  bool equalsTo(covariant Val other) {
+    if (runtimeType != other.runtimeType) {
+      _throwRuntimeError('Cannot compare two values of different types!');
+    }
+    return val == other.val;
+  }
+}
+
+/// A null value.
+///
+/// Should only be used for return values of functions that return
+/// [ValType.nothing]
+class NothingVal extends Val {
+  const NothingVal._() : super(ValType.nothing);
+
+  static const NothingVal instance = NothingVal._();
+
+  @override
+  Null get val => null;
+
+  @override
+  bool equalsTo(NothingVal other) => _throwRuntimeError(
+        'You should not be comparing Nothing!',
+      );
 }
 
 class BoolVal extends Val {
@@ -525,7 +573,11 @@ class BoolVal extends Val {
   static const BoolVal trueVal = BoolVal._(true);
   static const BoolVal falseVal = BoolVal._(false);
 
+  @override
   final bool val;
+
+  @override
+  bool equalsTo(BoolVal other) => val == other.val;
 
   @override
   String toString() => val.toString();
@@ -546,10 +598,11 @@ class StringVal extends Val {
 
   static final Map<String, StringVal> _instances = <String, StringVal>{};
 
+  @override
   final String val;
 
   @override
-  String toString() => val;
+  String toString() => '"$val"';
 }
 
 class NumVal extends Val {
@@ -567,6 +620,7 @@ class NumVal extends Val {
 
   static final Map<double, NumVal> _instances = <double, NumVal>{};
 
+  @override
   final double val;
 
   @override
@@ -580,16 +634,30 @@ class NumVal extends Val {
 }
 
 class ListVal extends Val {
-  ListVal(this.subType, this.elements) : super(ListValType(subType));
+  ListVal(this.subType, this.val) : super(ListValType(subType));
 
-  final List<Val> elements;
+  @override
+  final List<Val> val;
   final ValType subType;
+
+  @override
+  bool equalsTo(ListVal other) {
+    if (val.length != other.val.length) {
+      return false;
+    }
+    for (int i = 0; i < val.length; i += 1) {
+      if (!val[i].equalsTo(other.val[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   @override
   String toString() {
     final StringBuffer buffer = StringBuffer('[');
     buffer.write(
-      elements.map<String>((Val val) => val.toString()).join(', '),
+      val.map<String>((Val val) => val.toString()).join(', '),
     );
     buffer.write(']');
     return buffer.toString();
@@ -610,8 +678,10 @@ class PrintFuncDecl extends ExtFuncDecl {
     required Interpreter interpreter,
     required Context ctx,
   }) async {
+    final StringVal message = ctx.args['msg']! as StringVal;
+    // Don't call toString, else we get quotes
     interpreter.stdoutPrint(
-      ctx.args['msg'].toString(),
+      message.val,
     );
   }
 }
@@ -640,8 +710,8 @@ class RunFuncDecl extends ExtFuncDecl {
     final Val value = ctx.args['command']!;
     final List<String> command = <String>[];
     if (value is ListVal) {
-      for (final Val element in value.elements) {
-        command.add((element as StringVal).toString());
+      for (final Val element in value.val) {
+        command.add((element as StringVal).val);
       }
     } else {
       _throwRuntimeError(

@@ -112,4 +112,18 @@ Future<void> main() async {
       containsAllInOrder(<String>['reachable 1', 'reachable 2', 'reachable 3']),
     );
   });
+
+  test('comparison works', () async {
+    final TestInterpreter interpreter =
+        await createInterpreter('test/source_files/comparison.sol');
+    await interpreter.interpret();
+    expect(
+      interpreter.stdoutBuffer.toString().trim().split('\n'),
+      containsAllInOrder(<String>[
+        'reachable 1',
+        'reachable 2',
+        'reachable 3',
+      ]),
+    );
+  });
 }

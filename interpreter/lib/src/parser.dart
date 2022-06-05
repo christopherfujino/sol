@@ -263,8 +263,16 @@ class Parser {
   ///
   /// comparison ( ( "!=" | "==" ) comparison )* ;
   Expr _equality() {
-    /// TODO [EqualityExpr]
-    return _comparison();
+    Expr leftSide = _comparison();
+    while (_currentToken!.type == TokenType.equals ||
+        _currentToken!.type == TokenType.notEquals) {
+      leftSide = BinaryExpr(
+        leftSide,
+        _consume(_currentToken!.type),
+        _comparison(),
+      );
+    }
+    return leftSide;
   }
 
   /// term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
