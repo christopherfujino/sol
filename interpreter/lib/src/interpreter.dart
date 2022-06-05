@@ -5,8 +5,6 @@ import 'emitter.dart';
 import 'parser.dart';
 import 'scanner.dart';
 
-typedef Printer = void Function(String);
-
 class Interpreter {
   Interpreter({
     required this.parseTree,
