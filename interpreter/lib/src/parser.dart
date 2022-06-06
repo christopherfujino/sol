@@ -384,6 +384,13 @@ class Parser {
       return _typeExpr();
     }
 
+    if (_currentToken!.type == TokenType.openParen) {
+      _consume(TokenType.openParen);
+      final Expr expr = _expr();
+      _consume(TokenType.closeParen);
+      return expr;
+    }
+
     // This should be last
     if (_currentToken!.type == TokenType.identifier) {
       return _identifierExpr();
