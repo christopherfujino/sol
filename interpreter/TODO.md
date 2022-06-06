@@ -4,6 +4,8 @@
 
 - [ ] for loops
 - [ ] logical keywords/operators
+- [ ] Hash maps
+- [ ] Errors
 - [ ] Structures!
 - [ ] += (et al) operators
 
