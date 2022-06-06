@@ -2,7 +2,6 @@
 
 ## Next
 
-- [ ] while loops
 - [ ] for loops
 - [ ] logical keywords/operators
 - [ ] Structures!
@@ -21,3 +20,4 @@
 - [x] if, else if, and else
 - [x] comparison expressions
 - [x] Validate each function can only return values that match the function's
+- [x] while loops
