@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io' as io;
 
+import 'package:meta/meta.dart';
+
 import 'emitter.dart';
 import 'parser.dart';
 import 'scanner.dart';
@@ -66,7 +68,7 @@ class Interpreter {
     await _executeFunc(mainFunc, args, ctx);
   }
 
-  Future<void> _stmt(final Stmt stmt) async {
+  Future<BlockExit?> _stmt(final Stmt stmt) async {
     if (stmt is ConditionalChainStmt) {
       return _conditionalChainStmt(stmt);
     }
@@ -74,17 +76,21 @@ class Interpreter {
       return _whileStmt(stmt);
     }
     if (stmt is ReturnStmt) {
-      ctx.returnValue = await _expr(stmt.returnValue);
-      return;
+      throw StateError(
+        'This should be unreachable, should be handled in the _block loop',
+      );
     }
     if (stmt is BareStmt) {
-      return _bareStmt(stmt, ctx);
+      await _bareStmt(stmt, ctx);
+      return null;
     }
     if (stmt is VarDeclStmt) {
-      return _varDeclStmt(stmt, ctx);
+      await _varDeclStmt(stmt, ctx);
+      return null;
     }
     if (stmt is AssignStmt) {
-      return _assignStmt(stmt);
+      await _assignStmt(stmt);
+      return null;
     }
     _throwRuntimeError('Unimplemented statement type ${stmt.runtimeType}');
   }
@@ -103,7 +109,9 @@ class Interpreter {
     }
   }
 
-  Future<void> _conditionalChainStmt(ConditionalChainStmt statement) async {
+  Future<BlockExit?> _conditionalChainStmt(
+    ConditionalChainStmt statement,
+  ) async {
     final BoolVal ifCondition;
     try {
       ifCondition = await _expr<BoolVal>(statement.ifStmt.expr);
@@ -112,7 +120,10 @@ class Interpreter {
       _throwRuntimeError('foo ${statement.ifStmt.expr}\n$err');
     }
     if (ifCondition.val) {
-      await _block(statement.ifStmt.block);
+      final BlockExit? exit = await _block(statement.ifStmt.block);
+      if (exit != null) {
+        return exit;
+      }
     } else {
       if (statement.elseIfStmts != null) {
         bool hitAnElseIf = false;
@@ -120,21 +131,39 @@ class Interpreter {
           final BoolVal condition = await _expr<BoolVal>(stmt.expr);
           if (condition.val) {
             hitAnElseIf = true;
-            await _block(stmt.block);
+            final BlockExit? exit = await _block(stmt.block);
+            if (exit != null) {
+              return exit;
+            }
             break;
           }
         }
         if (!hitAnElseIf && statement.elseStmt != null) {
-          await _block(statement.elseStmt!.block);
+          final BlockExit? exit = await _block(statement.elseStmt!.block);
+          if (exit != null) {
+            return exit;
+          }
         }
       }
     }
+    return null;
   }
 
-  Future<void> _whileStmt(WhileStmt stmt) async {
+  Future<BlockExit?> _whileStmt(WhileStmt stmt) async {
     while ((await _expr<BoolVal>(stmt.condition)).val) {
-      await _block(stmt.block);
+      final BlockExit? exit = await _block(stmt.block);
+      switch (exit.runtimeType) {
+        case BreakSentinel:
+          return null;
+        case ReturnValue:
+          return exit;
+        case Null:
+          break;
+        default:
+          throw UnimplementedError('cannot handle ${exit.runtimeType}');
+      }
     }
+    return null;
   }
 
   Future<void> _bareStmt(BareStmt statement, Context ctx) async {
@@ -200,7 +229,7 @@ class Interpreter {
     }
 
     final T? returnVal = await _executeFunc<T?>(func, args, ctx);
-    return returnVal ?? NothingVal.instance as T;
+    return returnVal ?? NothingVal() as T;
   }
 
   Future<Val> _typeCast(TypeCast expr, Context ctx) async {
@@ -235,16 +264,36 @@ class Interpreter {
       ctx.setArg(param.name.name, arg);
     }
 
+    final T returnVal;
     if (func is ExtFuncDecl) {
-      await func.interpret(
+      final BlockExit exit = await func.interpret(
         interpreter: this,
         ctx: ctx,
       );
+      if (exit is! ReturnValue) {
+        throw UnimplementedError(
+          'Not sure how to handle a ${exit.runtimeType} returned from a '
+          'function block',
+        );
+      }
+      returnVal = exit.val as T;
     } else {
-      await _block(func.statements);
+      final BlockExit? exit = await _block(func.statements);
+      if (exit != null && exit is! ReturnValue) {
+        throw UnimplementedError(
+          'Not sure how to handle a ${exit.runtimeType} returned from a '
+          'function block',
+        );
+      }
+      if (exit == null) {
+        returnVal = NothingVal() as T;
+      } else {
+        returnVal = (exit as ReturnValue).val as T;
+      }
     }
 
-    final T returnVal = ctx.popFrame().returnVal as T;
+    ctx.popFrame();
+
     // validate return value type
     final ValType definedType = _typeRefToValType(func.returnType);
     final ValType actualType = returnVal?.type ?? ValType.nothing;
@@ -257,10 +306,29 @@ class Interpreter {
     return returnVal;
   }
 
-  Future<void> _block(Iterable<Stmt> statements) async {
+  Future<BlockExit?> _block(Iterable<Stmt> statements) async {
     for (final Stmt stmt in statements) {
-      await _stmt(stmt);
+      if (stmt is BlockExitStmt) {
+        switch (stmt.runtimeType) {
+          case BreakStmt:
+            // Don't actually execute a [BreakStmt] as there is nothing to do.
+            return BreakSentinel.instance;
+          case ReturnStmt:
+            final ReturnStmt returnStmt = stmt as ReturnStmt;
+            if (returnStmt.returnValue == null) {
+              return ReturnValue.nothing;
+            }
+            return ReturnValue(await _expr(returnStmt.returnValue!));
+          // TODO handle continue statement
+
+        }
+      }
+      final BlockExit? exit = await _stmt(stmt);
+      if (exit != null) {
+        return exit;
+      }
     }
+    return null;
   }
 
   Future<Val> _resolveIdentifier(
@@ -495,13 +563,9 @@ class Context {
   void setArg(String name, Val val) {
     _callStack.last.arguments[name] = val;
   }
-
-  set returnValue(Val? val) => _callStack.last.returnVal = val;
-  Val? get returnValue => _callStack.last.returnVal;
 }
 
 class CallFrame {
-  Val? returnVal;
   final Map<String, Val> arguments = <String, Val>{};
   final Map<String, Val> varBindings = <String, Val>{};
   final Map<String, Val> constBindings = <String, Val>{};
@@ -522,7 +586,7 @@ abstract class ExtFuncDecl extends FuncDecl {
     required super.params,
   }) : super(statements: const <Stmt>[]);
 
-  Future<void> interpret({
+  Future<BlockExit> interpret({
     required Interpreter interpreter,
     required Context ctx,
   });
@@ -583,9 +647,11 @@ abstract class Val {
 /// Should only be used for return values of functions that return
 /// [ValType.nothing]
 class NothingVal extends Val {
+  factory NothingVal() => _instance;
+
   const NothingVal._() : super(ValType.nothing);
 
-  static const NothingVal instance = NothingVal._();
+  static const NothingVal _instance = NothingVal._();
 
   @override
   Null get val => null;
@@ -707,7 +773,7 @@ class PrintFuncDecl extends ExtFuncDecl {
         );
 
   @override
-  Future<void> interpret({
+  Future<BlockExit> interpret({
     required Interpreter interpreter,
     required Context ctx,
   }) async {
@@ -716,6 +782,8 @@ class PrintFuncDecl extends ExtFuncDecl {
     interpreter.stdoutPrint(
       message.val,
     );
+
+    return ReturnValue.nothing;
   }
 }
 
@@ -730,7 +798,7 @@ class RunFuncDecl extends ExtFuncDecl {
         );
 
   @override
-  Future<void> interpret({
+  Future<BlockExit> interpret({
     required Interpreter interpreter,
     required Context ctx,
   }) async {
@@ -760,6 +828,7 @@ class RunFuncDecl extends ExtFuncDecl {
     if (exitCode != 0) {
       _throwRuntimeError('"${command.join(' ')}" exited with code $exitCode');
     }
+    return ReturnValue.nothing;
   }
 }
 
@@ -773,4 +842,25 @@ class RuntimeError implements Exception {
 
   @override
   String toString() => message;
+}
+
+@immutable
+
+/// Interface for [ReturnValue], [BreakSentinel] and [ContinueSentinel].
+abstract class BlockExit {
+  const BlockExit();
+}
+
+class BreakSentinel extends BlockExit {
+  const BreakSentinel._();
+
+  static const BreakSentinel instance = BreakSentinel._();
+}
+
+class ReturnValue extends BlockExit {
+  const ReturnValue(this.val);
+
+  final Val val;
+
+  static const ReturnValue nothing = ReturnValue(NothingVal._instance);
 }

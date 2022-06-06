@@ -15,6 +15,9 @@ enum TokenType {
   /// Keyword "return".
   returnKeyword,
 
+  /// Keyword "break".
+  breakKeyword,
+
   /// Keyword "while".
   whileKeyword,
 
@@ -240,6 +243,9 @@ Last scanned token: ${_tokenList.last}
         break;
       case 'while':
         tokenType = TokenType.whileKeyword;
+        break;
+      case 'break':
+        tokenType = TokenType.breakKeyword;
         break;
       default:
         return false;

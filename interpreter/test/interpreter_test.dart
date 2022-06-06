@@ -132,6 +132,18 @@ Future<void> main() async {
     );
   });
 
+  test('early return does not execute dead code', () async {
+    final TestInterpreter interpreter =
+        await createInterpreter('test/source_files/early_return.sol');
+    await interpreter.interpret();
+
+    expect(
+      interpreter.stdoutBuffer.toString().trim().split('\n'),
+      // apparently `''.split('\n') == ['']`
+      orderedEquals(<String>['']),
+    );
+  });
+
   test('while loop works', () async {
     final TestInterpreter interpreter =
         await createInterpreter('test/source_files/while_loop.sol');

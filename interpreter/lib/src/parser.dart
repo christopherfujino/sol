@@ -151,6 +151,9 @@ class Parser {
     if (_currentToken!.type == TokenType.whileKeyword) {
       return _whileStmt();
     }
+    if (_currentToken!.type == TokenType.breakKeyword) {
+      return _breakStmt();
+    }
     if (_currentToken!.type == TokenType.returnKeyword) {
       return _returnStmt();
     }
@@ -220,11 +223,17 @@ class Parser {
     return WhileStmt(condition, block);
   }
 
+  BreakStmt _breakStmt() {
+    _consume(TokenType.breakKeyword);
+    _consume(TokenType.semicolon);
+    return BreakStmt();
+  }
+
   ReturnStmt _returnStmt() {
     _consume(TokenType.returnKeyword);
     if (_currentToken!.type == TokenType.semicolon) {
       _consume(TokenType.semicolon);
-      return const ReturnStmt(NothingExpr());
+      return const ReturnStmt(null);
     }
     final Expr returnValue = _expr();
     _consume(TokenType.semicolon);
@@ -612,14 +621,22 @@ class AssignStmt extends Stmt {
 }
 
 /// Interface for [ReturnStmt], etc.
-abstract class FunctionExitStmt extends Stmt {
-  const FunctionExitStmt();
+abstract class BlockExitStmt extends Stmt {
+  const BlockExitStmt();
 }
 
-class ReturnStmt extends FunctionExitStmt {
+class BreakStmt extends BlockExitStmt {
+  factory BreakStmt() => instance;
+
+  const BreakStmt._();
+
+  static const BreakStmt instance = BreakStmt._();
+}
+
+class ReturnStmt extends BlockExitStmt {
   const ReturnStmt(this.returnValue);
 
-  final Expr returnValue;
+  final Expr? returnValue;
 }
 
 class BareStmt extends Stmt {

@@ -5,10 +5,10 @@ function main() {
     x = x + 1;
   }
 
-  #while true {
-  #  if x == 42 {
-  #    break;
-  #  }
-  #  x = x + 1;
-  #}
+  while true {
+    if x == 42 {
+      break;
+    }
+    x = x + 1;
+  }
 }
