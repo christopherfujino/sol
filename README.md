@@ -48,7 +48,7 @@ function maxNumber(numbers Number[]) -> Number {
 }
 
 function main() {
-  variable allNumbers = Number[];
+  variable allNumbers = Number[1, 2];
   variable bigNumber = maxNumber(allNumbers);
   print("The biggest number is " + bigNumber);
 }
