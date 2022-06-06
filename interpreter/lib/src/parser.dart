@@ -296,7 +296,6 @@ class Parser {
 
   /// term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
   Expr _comparison() {
-    /// TODO [ComparisonExpr]
     Expr leftSide = _term();
     while (_currentToken!.type == TokenType.greaterThan ||
         _currentToken!.type == TokenType.lessThan ||
@@ -347,7 +346,7 @@ class Parser {
     return _primary();
   }
 
-  /// NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
+  /// NUMBER | STRING | "true" | "false" | "(" expression ")" ;
   Expr _primary() {
     if (_currentToken!.type == TokenType.stringLiteral) {
       return _stringLiteral();
