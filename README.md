@@ -1,8 +1,8 @@
 # SOL: Simple Obvious Language
 
 Sol is an imperative, statically-typed language designed as a tool for learning
-how to program. It is **simple**, in that it has few language features and is
-thus can be learned quickly. It is **obvious**, in that it should be clear from
+how to program. It is **simple**, in that it has few language features and can
+thus be learned quickly. It is **obvious**, in that it should be clear from
 reading the source code of an application what instructions the computer will
 execute.
 
@@ -51,6 +51,17 @@ function main() {
   variable allNumbers = Number[1, 2];
   variable bigNumber = maxNumber(allNumbers);
   print("The biggest number is " + bigNumber);
+}
+```
+
+### Recursion
+
+```
+function fibonacci(num Number) -> Number {
+  if (n <= 1) {
+    return n;
+  }
+  return fibonacci(n - 1) + fibonacci(n - 2);
 }
 ```
 

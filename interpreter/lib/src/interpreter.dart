@@ -384,6 +384,14 @@ class Interpreter {
           '"+" operator not implemented for types ${leftVal.runtimeType} and '
           '${rightVal.runtimeType}',
         );
+      case TokenType.minus:
+        if (leftVal is NumVal && rightVal is NumVal) {
+          return NumVal(leftVal.val - rightVal.val) as T;
+        }
+        _throwRuntimeError(
+          '"${expr.operatorToken}" operator not implemented for types '
+          '${leftVal.runtimeType} and ${rightVal.runtimeType}',
+        );
       case TokenType.multiply:
         if (leftVal is NumVal && rightVal is NumVal) {
           return NumVal(leftVal.val * rightVal.val) as T;

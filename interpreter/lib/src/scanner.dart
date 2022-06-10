@@ -429,6 +429,7 @@ Last scanned token: ${_tokenList.last}
         ),
       );
       _index += 1;
+      return true;
     }
     return false;
   }
