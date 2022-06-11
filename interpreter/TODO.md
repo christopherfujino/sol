@@ -1,6 +1,6 @@
 # Sol Language TODO
 
-## Next
+## Features Next
 
 - [ ] for loops
 - [ ] logical keywords/operators
@@ -8,6 +8,12 @@
 - [ ] Errors
 - [ ] Structures!
 - [ ] += (et al) operators
+
+## Bugs Next
+
+- [ ] Variables should be block-scoped and not function-scoped; else, the
+  compiler could not statically determine if a variable has already been
+  declared if the declaration appeared within a conditional or loop.
 
 ## Long-term
 
