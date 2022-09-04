@@ -10,7 +10,7 @@ class ParseTree {
 
   @override
   String toString() {
-    final StringBuffer buffer = StringBuffer();
+    final StringBuffer buffer = StringBuffer('ParseTree: \n');
     for (final Decl decl in declarations) {
       for (final Stmt stmt in (decl as FuncDecl).statements) {
         buffer.writeln(stmt.toString());
@@ -358,6 +358,13 @@ class Parser {
       return _callExpr();
     }
 
+    if (_tokenLookahead(const <TokenType>[
+      TokenType.identifier,
+      TokenType.openSquareBracket,
+    ])) {
+      return _subExpr();
+    }
+
     if (_currentToken!.type == TokenType.booleanLiteral) {
       return _boolLiteral();
     }
@@ -460,6 +467,21 @@ class Parser {
     return CallExpr(
       name.value,
       argList ?? const <Expr>[],
+    );
+  }
+
+  // sub_expression ::= identifier, "[", String | Number, "]"
+  SubExpr _subExpr() {
+    final StringToken name = _consume(TokenType.identifier) as StringToken;
+    _consume(TokenType.openSquareBracket);
+
+    // TODO check this is a string/num expression during compilation
+    final Expr expr = _expr();
+
+    _consume(TokenType.closeSquareBracket);
+    return SubExpr(
+      name.value,
+      expr,
     );
   }
 
@@ -737,10 +759,24 @@ class CallExpr extends Expr {
 
   @override
   String toString() {
-    final String paramString =
-        argList.map((Expr expr) => expr.toString()).join(', ');
+    // This could be faster
+    final String paramString = argList
+        .map(
+          (Expr expr) => expr.toString(),
+        )
+        .join(', ');
     return 'function $name($paramString)';
   }
+}
+
+/// An expression dereferencing a data structure with square brackets.
+class SubExpr extends Expr {
+  const SubExpr(this.target, this.subscript);
+
+  /// List or Map that this expression is accessing.
+  final String target;
+
+  final Expr subscript;
 }
 
 class TypeCast extends Expr {

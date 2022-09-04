@@ -2,6 +2,8 @@
 
 ## Features Next
 
+- [ ] lists
+- [ ] constants
 - [ ] for loops
 - [ ] logical keywords/operators
 - [ ] Hash maps

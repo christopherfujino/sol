@@ -170,4 +170,14 @@ Future<void> main() async {
       ]),
     );
   });
+
+  test('list literals work', () async {
+    final TestInterpreter interpreter =
+        await createInterpreter('test/source_files/lists.sol');
+    await interpreter.interpret();
+    expect(
+      interpreter.stdoutBuffer.toString().trim().split('\n'),
+      contains('foo bar'),
+    );
+  });
 }

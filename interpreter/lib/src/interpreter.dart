@@ -210,7 +210,11 @@ class Interpreter {
     }
 
     if (expr is TypeCast) {
-      return _typeCast(expr, ctx) as Future<T>;
+      return _typeCast<T>(expr, ctx);
+    }
+
+    if (expr is SubExpr) {
+      return _subExpr<T>(expr, ctx);
     }
     _throwRuntimeError('Unimplemented expression type $expr');
   }
@@ -232,14 +236,18 @@ class Interpreter {
     return returnVal ?? NothingVal() as T;
   }
 
-  Future<Val> _typeCast(TypeCast expr, Context ctx) async {
+  Future<T> _typeCast<T extends Val>(TypeCast expr, Context ctx) async {
     switch (expr.type) {
       case TypeRef.string:
         final Val val = await _expr(expr.expr);
-        return StringVal(val.toString());
+        return StringVal(val.toString()) as T; // TODO explicitly check with helpful error
       default:
         throw UnimplementedError('Cast to type ${expr.type} not implemented');
     }
+  }
+
+  Future<T> _subExpr<T extends Val>(SubExpr expr, Context ctx) async {
+    throw UnimplementedError('TODO');
   }
 
   Future<T> _executeFunc<T extends Val?>(
@@ -506,6 +514,7 @@ class Interpreter {
   }
 }
 
+/// Runtime context, used for resolving identifiers.
 class Context {
   Context({
     this.workingDir,
@@ -670,7 +679,7 @@ abstract class Val {
 /// A null value.
 ///
 /// Should only be used for return values of functions that return
-/// [ValType.nothing]
+/// [ValType.nothing]. All variables should always have a non-Nothing value.
 class NothingVal extends Val {
   factory NothingVal() => _instance;
 
@@ -679,7 +688,7 @@ class NothingVal extends Val {
   static const NothingVal _instance = NothingVal._();
 
   @override
-  Null get val => null;
+  Never get val => _throwRuntimeError('You cannot reference a Nothing value!');
 
   @override
   bool equalsTo(NothingVal other) => _throwRuntimeError(
