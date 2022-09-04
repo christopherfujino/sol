@@ -240,7 +240,8 @@ class Interpreter {
     switch (expr.type) {
       case TypeRef.string:
         final Val val = await _expr(expr.expr);
-        return StringVal(val.toString()) as T; // TODO explicitly check with helpful error
+        // TODO explicitly check with helpful error
+        return StringVal(val.toString()) as T;
       default:
         throw UnimplementedError('Cast to type ${expr.type} not implemented');
     }
@@ -328,7 +329,6 @@ class Interpreter {
             }
             return ReturnValue(await _expr(returnStmt.returnValue!));
           // TODO handle continue statement
-
         }
       }
       final BlockExit? exit = await _stmt(stmt);
@@ -343,7 +343,7 @@ class Interpreter {
     IdentifierRef identifier,
     Context ctx,
   ) async {
-    final Val? val = ctx.getVal(identifier.name);
+    final Val val = ctx.getVal(identifier.name);
     if (val == null) {
       throw UnimplementedError(
         "Don't know how to resolve identifier ${identifier.name}",
