@@ -536,21 +536,22 @@ class Context {
 
   Map<String, Val> get args => _callStack.last.arguments;
 
-  Val? getVal(String name) {
+  T getVal<T extends Val>(String name) {
     final CallFrame frame = _callStack.last;
     Val? val = frame.arguments[name];
     if (val != null) {
-      return val;
+      return val as T;
     }
+    // TODO verify no collisions with varBindings
     val = frame.constBindings[name];
     if (val != null) {
-      return val;
+      return val as T;
     }
     val = frame.varBindings[name];
     if (val != null) {
-      return val;
+      return val as T;
     }
-    return null;
+    _throwRuntimeError('Could not resolve identifier $name of type $T');
   }
 
   void setVar(String name, Val val) {
