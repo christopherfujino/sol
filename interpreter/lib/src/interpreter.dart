@@ -578,6 +578,8 @@ class Context {
     _callStack.last.varBindings[name] = val;
   }
 
+  // An assignment expression (not declaration) must overwrite an already
+  // declared name.
   void resetVar(String name, Val val) {
     // verify already exists as a var
     final Val? prevVal = _callStack.last.varBindings[name];
