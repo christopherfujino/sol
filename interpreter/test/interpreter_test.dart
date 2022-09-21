@@ -174,7 +174,14 @@ Future<void> main() async {
   test('list literals work', () async {
     final TestInterpreter interpreter =
         await createInterpreter('test/source_files/lists.sol');
-    await interpreter.interpret();
+    try {
+      await interpreter.interpret();
+    } on Object catch (err) {
+      print('hit interpreter error');
+      print(interpreter.parseTree);
+      fail('TODO: remove try-catch');
+    }
+
     expect(
       interpreter.stdoutBuffer.toString().trim().split('\n'),
       contains('foo bar'),

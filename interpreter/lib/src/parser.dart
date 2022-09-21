@@ -3,6 +3,7 @@ import 'package:meta/meta.dart';
 import 'scanner.dart';
 import 'source_code.dart';
 
+/// A graph of [Decl]s and [Expr]s.
 class ParseTree {
   const ParseTree(this.declarations);
 
@@ -10,13 +11,121 @@ class ParseTree {
 
   @override
   String toString() {
-    final StringBuffer buffer = StringBuffer('ParseTree: \n');
-    for (final Decl decl in declarations) {
-      for (final Stmt stmt in (decl as FuncDecl).statements) {
-        buffer.writeln(stmt.toString());
-      }
+    final ParseTreePrinter printer = ParseTreePrinter();
+    printer.visitParseTree(this);
+    return printer.buffer.toString();
+    //final StringBuffer buffer = StringBuffer('ParseTree: \n');
+    //for (final Decl decl in declarations) {
+    //  for (final Stmt stmt in (decl as FuncDecl).statements) {
+    //    buffer.writeln(stmt.toString());
+    //  }
+    //}
+  }
+
+  void visit(ParseTreeVisitor visitor) {
+    visitor.visitParseTree(this);
+  }
+}
+
+abstract class ParseTreeVisitor {
+  void visitParseTree(ParseTree that);
+  void visitConstDecl(ConstDecl that);
+  void visitFuncDecl(FuncDecl that);
+  void visitNothingExpr(NothingExpr that);
+  void visitBinaryExpr(BinaryExpr that);
+  void visitUnaryExpr(UnaryExpr that);
+  void visitCallExpr(CallExpr that);
+  void visitSubExpr(SubExpr that);
+  void visitTypeCast(TypeCast that);
+}
+
+class ParseTreePrinter implements ParseTreeVisitor {
+  final StringBuffer buffer = StringBuffer();
+  int _indentLevel = 0;
+
+  void _indent(void Function() cb) {
+    _indentLevel += 1;
+    cb();
+    _indentLevel -= 1;
+  }
+
+  void _write(String string) => buffer.writeln('${'  ' * _indentLevel}$string');
+
+  @override
+  void visitParseTree(ParseTree that) {
+    _write('$_indent(ParseTree');
+    for (final Decl decl in that.declarations) {
+      _indent(() => decl.visit(this));
     }
-    return buffer.toString();
+    _write(')');
+  }
+
+  @override
+  void visitConstDecl(ConstDecl that) {
+    _write('(ConstDecl');
+    _indent(() {
+      _write('"${that.name}"');
+      that.initialValue.visit(this);
+    });
+    _write(')');
+  }
+
+  @override
+  void visitFuncDecl(FuncDecl that) {
+    _write('(FuncDecl)');
+  }
+
+  // Expressions
+
+  @override
+  void visitNothingExpr(NothingExpr that) {
+    _write('(NothingExpr)');
+  }
+
+  @override
+  void visitBinaryExpr(BinaryExpr that) {
+    _write('(BinaryExpr');
+    _indent(() {
+      that.left.visit(this);
+      _write(that.operatorToken.type.toString());
+      that.right.visit(this);
+    });
+    _write(')');
+  }
+
+  @override
+  void visitUnaryExpr(UnaryExpr that) {
+    _write('(UnaryExpr');
+    _indent(() {
+      _write(that.operatorToken.type.toString());
+      that.primary.visit(this);
+    });
+    _write(')');
+  }
+
+  @override
+  void visitCallExpr(CallExpr that) {
+    _write('(CallExpr');
+    _indent(() {
+      _write(that.name);
+      _write('(argList');
+      _indent(() {
+        for (final Expr arg in that.argList) {
+          arg.visit(this);
+        }
+      });
+      _write(')');
+    });
+    _write(')');
+  }
+
+  @override
+  void visitSubExpr(SubExpr that) {
+    _write('(SubExpr');
+    _indent(() {
+      _write('target: ');
+    });
+    _write(')');
   }
 }
 
@@ -588,6 +697,8 @@ abstract class Decl {
   });
 
   final String name;
+
+  void visit(ParseTreeVisitor visitor);
 }
 
 class ConstDecl extends Decl {
@@ -597,6 +708,9 @@ class ConstDecl extends Decl {
   });
 
   final Expr initialValue;
+
+  @override
+  void visit(ParseTreeVisitor visitor) => visitor.visitConstDecl(this);
 }
 
 class FuncDecl extends Decl {
@@ -610,6 +724,9 @@ class FuncDecl extends Decl {
   final Iterable<Stmt> statements;
   final List<Parameter> params;
   final TypeRef? returnType;
+
+  @override
+  void visit(ParseTreeVisitor visitor) => visitor.visitFuncDecl(this);
 
   @override
   String toString() {
@@ -722,10 +839,15 @@ abstract class Expr {
 
   // TODO create compiled version with a static type
   // TODO track token
+
+  void visit(ParseTreeVisitor visitor);
 }
 
 class NothingExpr extends Expr {
   const NothingExpr();
+
+  @override
+  void visit(ParseTreeVisitor visitor) => visitor.visitNothingExpr(this);
 }
 
 class BinaryExpr extends Expr {
@@ -738,6 +860,9 @@ class BinaryExpr extends Expr {
   final Expr left;
   final Token operatorToken;
   final Expr right;
+
+  @override
+  void visit(ParseTreeVisitor visitor) => visitor.visitBinaryExpr(this);
 }
 
 class UnaryExpr extends Expr {
@@ -748,6 +873,9 @@ class UnaryExpr extends Expr {
 
   final Token operatorToken;
   final Expr primary;
+
+  @override
+  void visit(ParseTreeVisitor visitor) => visitor.visitUnaryExpr(this);
 }
 
 class CallExpr extends Expr {
@@ -767,6 +895,9 @@ class CallExpr extends Expr {
         .join(', ');
     return 'function $name($paramString)';
   }
+
+  @override
+  void visit(ParseTreeVisitor visitor) => visitor.visitCallExpr(this);
 }
 
 /// An expression dereferencing a data structure with square brackets.
@@ -777,6 +908,9 @@ class SubExpr extends Expr {
   final String target;
 
   final Expr subscript;
+
+  @override
+  void visit(ParseTreeVisitor visitor) => visitor.visitSubExpr(this);
 }
 
 class TypeCast extends Expr {
@@ -789,6 +923,9 @@ class TypeCast extends Expr {
   String toString() {
     return 'TypeCast ($expr) -> $type';
   }
+
+  @override
+  void visit(ParseTreeVisitor visitor) => visitor.visitTypeCast(this);
 }
 
 class TypeRef extends Expr {
