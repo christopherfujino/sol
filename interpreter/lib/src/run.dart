@@ -5,7 +5,7 @@ import 'package:args/command_runner.dart';
 
 import 'emitter.dart';
 import 'interpreter.dart';
-import 'parser.dart';
+import 'parser/parser.dart';
 import 'scanner.dart';
 import 'source_code.dart';
 

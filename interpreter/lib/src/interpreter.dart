@@ -4,7 +4,7 @@ import 'dart:io' as io;
 import 'package:meta/meta.dart';
 
 import 'emitter.dart';
-import 'parser.dart';
+import 'parser/parser.dart';
 import 'scanner.dart';
 
 class Interpreter {
