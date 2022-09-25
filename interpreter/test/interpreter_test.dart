@@ -176,9 +176,11 @@ Future<void> main() async {
         await createInterpreter('test/source_files/lists.sol');
     try {
       await interpreter.interpret();
-    } on Object catch (err) {
+    } on Object catch (err, stacktrace) {
       print('hit interpreter error');
       print(interpreter.parseTree);
+      print(err);
+      print(stacktrace);
       fail('TODO: remove try-catch');
     }
 

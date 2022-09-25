@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:meta/meta.dart';
 
 import 'scanner.dart';
@@ -11,9 +13,8 @@ class ParseTree {
 
   @override
   String toString() {
-    final ParseTreePrinter printer = ParseTreePrinter();
-    printer.visitParseTree(this);
-    return printer.buffer.toString();
+    const ParseTreePrinter printer = ParseTreePrinter();
+    return printer.print(this);
     //final StringBuffer buffer = StringBuffer('ParseTree: \n');
     //for (final Decl decl in declarations) {
     //  for (final Stmt stmt in (decl as FuncDecl).statements) {
@@ -22,110 +23,296 @@ class ParseTree {
     //}
   }
 
-  void visit(ParseTreeVisitor visitor) {
-    visitor.visitParseTree(this);
-  }
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitParseTree(this);
 }
 
-abstract class ParseTreeVisitor {
-  void visitParseTree(ParseTree that);
-  void visitConstDecl(ConstDecl that);
-  void visitFuncDecl(FuncDecl that);
-  void visitNothingExpr(NothingExpr that);
-  void visitBinaryExpr(BinaryExpr that);
-  void visitUnaryExpr(UnaryExpr that);
-  void visitCallExpr(CallExpr that);
-  void visitSubExpr(SubExpr that);
-  void visitTypeCast(TypeCast that);
+abstract class ParseTreeVisitor<T> {
+  T visitParseTree(ParseTree that);
+
+  // Declarations
+  T visitConstDecl(ConstDecl that);
+  T visitFuncDecl(FuncDecl that);
+
+  // Expressions
+  T visitNothingExpr(NothingExpr that);
+  T visitBinaryExpr(BinaryExpr that);
+  T visitUnaryExpr(UnaryExpr that);
+  T visitCallExpr(CallExpr that);
+  T visitSubExpr(SubExpr that);
+  T visitTypeCast(TypeCast that);
+  T visitTypeRef(TypeRef that);
+  T visitListTypeRef(ListTypeRef that);
+  T visitIdentifierRef(IdentifierRef that);
+  T visitBoolLiteral(BoolLiteral that);
+  T visitStringLiteral(StringLiteral that);
+  T visitNumLiteral(NumLiteral that);
+  T visitListLiteral(ListLiteral that);
+
+  // Statements
+  T visitVarDeclStmt(VarDeclStmt that);
+  T visitAssignStmt(AssignStmt that);
+  T visitBreakStmt(BreakStmt that);
+  T visitReturnStmt(ReturnStmt that);
+  T visitBareStmt(BareStmt that);
+  T visitConditionalChainStmt(ConditionalChainStmt that);
+  T visitWhileStmt(WhileStmt that);
+  T visitIfStmt(IfStmt that);
+  T visitElseIfStmt(ElseIfStmt that);
+  T visitElseStmt(ElseStmt that);
 }
 
-class ParseTreePrinter implements ParseTreeVisitor {
-  final StringBuffer buffer = StringBuffer();
-  int _indentLevel = 0;
+String _indentString(String msg, [int level = 1]) => '${'  ' * level}$msg';
+String _escapeString(String msg) {
+  // TODO actually escape
+  return '"$msg"';
+}
 
-  void _indent(void Function() cb) {
-    _indentLevel += 1;
-    cb();
-    _indentLevel -= 1;
-  }
+class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
+  const ParseTreePrinter();
 
-  void _write(String string) => buffer.writeln('${'  ' * _indentLevel}$string');
-
-  @override
-  void visitParseTree(ParseTree that) {
-    _write('$_indent(ParseTree');
-    for (final Decl decl in that.declarations) {
-      _indent(() => decl.visit(this));
+  Iterable<String> _indentBlock(Iterable<String> Function() cb,
+      {int level = 1}) sync* {
+    for (final String line in cb()) {
+      yield _indentString(line, level);
     }
-    _write(')');
+  }
+
+  String print(ParseTree that) {
+    final StringBuffer buffer = StringBuffer();
+    that.accept(this).forEach(buffer.writeln);
+    return buffer.toString();
   }
 
   @override
-  void visitConstDecl(ConstDecl that) {
-    _write('(ConstDecl');
-    _indent(() {
-      _write('"${that.name}"');
-      that.initialValue.visit(this);
+  Iterable<String> visitParseTree(ParseTree that) sync* {
+    yield '(ParseTree';
+    yield* _indentBlock(() sync* {
+      for (final Decl decl in that.declarations) {
+        for (final String line in decl.accept(this)) {
+          yield _indentString(line);
+        }
+      }
     });
-    _write(')');
+
+    yield ')';
   }
 
   @override
-  void visitFuncDecl(FuncDecl that) {
-    _write('(FuncDecl)');
+  Iterable<String> visitConstDecl(ConstDecl that) sync* {
+    yield '(ConstDecl';
+    yield _indentString('${that.initialValue.accept(this)})');
+  }
+
+  @override
+  Iterable<String> visitFuncDecl(FuncDecl that) sync* {
+    yield '(FuncDecl';
+    yield* _indentBlock(() sync* {
+      yield '(params: ';
+
+      yield* _indentBlock(() sync* {
+        for (final Parameter param in that.params) {
+          yield '($param)';
+        }
+      });
+
+      yield '),';
+      yield '(block: ';
+      yield* _indentBlock(() sync* {
+        for (final Stmt stmt in that.statements) {
+          yield* stmt.accept(this);
+        }
+      });
+      yield ')';
+    });
+    yield ')';
   }
 
   // Expressions
 
   @override
-  void visitNothingExpr(NothingExpr that) {
-    _write('(NothingExpr)');
+  Iterable<String> visitNothingExpr(NothingExpr that) {
+    return const <String>['(NothingExpr)'];
   }
 
   @override
-  void visitBinaryExpr(BinaryExpr that) {
-    _write('(BinaryExpr');
-    _indent(() {
-      that.left.visit(this);
-      _write(that.operatorToken.type.toString());
-      that.right.visit(this);
+  Iterable<String> visitBinaryExpr(BinaryExpr that) sync* {
+    yield '(BinaryExpr';
+
+    // indent
+    for (final String left in that.left.accept(this)) {
+      yield _indentString(left);
+    }
+    yield _indentString(that.operatorToken.type.toString());
+
+    for (final String right in that.right.accept(this)) {
+      yield _indentString(right);
+    }
+    // dedent
+    yield ')';
+  }
+
+  @override
+  Iterable<String> visitUnaryExpr(UnaryExpr that) sync* {
+    yield '(UnaryExpr';
+    yield* _indentBlock(() sync* {
+      yield '${that.operatorToken.type},';
+      yield* that.primary.accept(this);
     });
-    _write(')');
+    yield ')';
   }
 
   @override
-  void visitUnaryExpr(UnaryExpr that) {
-    _write('(UnaryExpr');
-    _indent(() {
-      _write(that.operatorToken.type.toString());
-      that.primary.visit(this);
-    });
-    _write(')');
-  }
-
-  @override
-  void visitCallExpr(CallExpr that) {
-    _write('(CallExpr');
-    _indent(() {
-      _write(that.name);
-      _write('(argList');
-      _indent(() {
+  Iterable<String> visitCallExpr(CallExpr that) sync* {
+    yield '(CallExpr';
+    yield* _indentBlock(() sync* {
+      yield '(name: ${that.name})';
+      yield '(argList';
+      yield* _indentBlock(() sync* {
         for (final Expr arg in that.argList) {
-          arg.visit(this);
+          yield* arg.accept(this);
         }
       });
-      _write(')');
+      yield ')';
     });
-    _write(')');
+    yield ')';
   }
 
   @override
-  void visitSubExpr(SubExpr that) {
-    _write('(SubExpr');
-    _indent(() {
-      _write('target: ');
+  Iterable<String> visitSubExpr(SubExpr that) sync* {
+    yield '(SubExpr';
+    yield* _indentBlock(() sync* {
+      yield 'target: ${that.target}';
+      yield* that.subscript.accept(this);
     });
-    _write(')');
+    yield ')';
+  }
+
+  @override
+  Iterable<String> visitTypeCast(TypeCast that) sync* {
+    yield '(TypeCast';
+    yield* _indentBlock(() sync* {
+      yield 'type: ';
+      yield* that.type.accept(this);
+    });
+    yield ')';
+  }
+
+  @override
+  Iterable<String> visitTypeRef(TypeRef that) {
+    return <String>['(TypeRef ${that.name})'];
+  }
+
+  @override
+  Iterable<String> visitListTypeRef(ListTypeRef that) sync* {
+    throw UnimplementedError('TODO');
+  }
+
+  @override
+  Iterable<String> visitIdentifierRef(IdentifierRef that) sync* {
+    throw UnimplementedError('TODO');
+  }
+
+  @override
+  Iterable<String> visitBoolLiteral(BoolLiteral that) sync* {
+    throw UnimplementedError('TODO');
+  }
+
+  @override
+  Iterable<String> visitStringLiteral(StringLiteral that) sync* {
+    yield '(StringLiteral';
+    yield* _indentBlock(() => <String>[_escapeString(that.value)]);
+    yield ')';
+  }
+
+  @override
+  Iterable<String> visitNumLiteral(NumLiteral that) sync* {
+    yield '(NumLiteral';
+    yield* _indentBlock(() => <String>[that.value.toString()]);
+    yield ')';
+  }
+
+  @override
+  Iterable<String> visitListLiteral(ListLiteral that) sync* {
+    yield '(ListLiteral';
+    yield* _indentBlock(() sync* {
+      yield '(type: ';
+      yield* _indentBlock(() sync* {
+        yield* that.type.accept(this);
+      });
+      yield ')';
+      yield '(elements:';
+      yield* _indentBlock(() sync* {
+        for (final Expr element in that.elements) {
+          yield* element.accept(this);
+        }
+      });
+      yield ')';
+    });
+    yield ')';
+  }
+
+  // Statements
+
+  @override
+  Iterable<String> visitVarDeclStmt(VarDeclStmt that) sync* {
+    yield '(VarDeclStmt';
+    yield* _indentBlock(() sync* {
+      yield '(name: ${that.name})';
+      yield '(isConstant: ${that.isConstant})';
+      yield '(expr: ';
+      yield* _indentBlock(() sync* {
+        yield* that.expr.accept(this);
+      });
+      yield ')';
+    });
+    yield ')';
+  }
+
+  @override
+  Iterable<String> visitAssignStmt(AssignStmt that) sync* {
+    throw UnimplementedError('TODO');
+  }
+
+  @override
+  Iterable<String> visitBreakStmt(BreakStmt that) sync* {
+    throw UnimplementedError('TODO');
+  }
+
+  @override
+  Iterable<String> visitReturnStmt(ReturnStmt that) sync* {
+    throw UnimplementedError('TODO');
+  }
+
+  @override
+  Iterable<String> visitBareStmt(BareStmt that) sync* {
+    yield '(BareStmt';
+    yield* _indentBlock(() => that.expression.accept(this));
+    yield ')';
+  }
+
+  @override
+  Iterable<String> visitConditionalChainStmt(ConditionalChainStmt that) sync* {
+    throw UnimplementedError('TODO');
+  }
+
+  @override
+  Iterable<String> visitIfStmt(IfStmt that) sync* {
+    throw UnimplementedError('TODO');
+  }
+
+  @override
+  Iterable<String> visitElseIfStmt(ElseIfStmt that) sync* {
+    throw UnimplementedError('TODO');
+  }
+
+  @override
+  Iterable<String> visitElseStmt(ElseStmt that) sync* {
+    throw UnimplementedError('TODO');
+  }
+
+  @override
+  Iterable<String> visitWhileStmt(WhileStmt that) sync* {
+    throw UnimplementedError('TODO');
   }
 }
 
@@ -698,7 +885,7 @@ abstract class Decl {
 
   final String name;
 
-  void visit(ParseTreeVisitor visitor);
+  T accept<T>(ParseTreeVisitor<T> visitor);
 }
 
 class ConstDecl extends Decl {
@@ -710,7 +897,7 @@ class ConstDecl extends Decl {
   final Expr initialValue;
 
   @override
-  void visit(ParseTreeVisitor visitor) => visitor.visitConstDecl(this);
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitConstDecl(this);
 }
 
 class FuncDecl extends Decl {
@@ -726,7 +913,7 @@ class FuncDecl extends Decl {
   final TypeRef? returnType;
 
   @override
-  void visit(ParseTreeVisitor visitor) => visitor.visitFuncDecl(this);
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitFuncDecl(this);
 
   @override
   String toString() {
@@ -744,6 +931,8 @@ class FuncDecl extends Decl {
 @immutable
 abstract class Stmt {
   const Stmt();
+
+  T accept<T>(ParseTreeVisitor<T> visitor);
 }
 
 /// Declaration of a variable (or constant).
@@ -753,6 +942,9 @@ class VarDeclStmt extends Stmt {
   final String name;
   final Expr expr;
   final bool isConstant;
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitVarDeclStmt(this);
 }
 
 /// Re-assignment of a variable.
@@ -763,6 +955,9 @@ class AssignStmt extends Stmt {
 
   final String name;
   final Expr expr;
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitAssignStmt(this);
 }
 
 /// Interface for [ReturnStmt], etc.
@@ -776,12 +971,18 @@ class BreakStmt extends BlockExitStmt {
   const BreakStmt._();
 
   static const BreakStmt instance = BreakStmt._();
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitBreakStmt(this);
 }
 
 class ReturnStmt extends BlockExitStmt {
   const ReturnStmt(this.returnValue);
 
   final Expr? returnValue;
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitReturnStmt(this);
 }
 
 class BareStmt extends Stmt {
@@ -793,6 +994,9 @@ class BareStmt extends Stmt {
   String toString() {
     return expression.toString();
   }
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitBareStmt(this);
 }
 
 /// Wraps a single opening if statement (with block), zero or more else if
@@ -807,6 +1011,10 @@ class ConditionalChainStmt extends Stmt {
   final IfStmt ifStmt;
   final Iterable<ElseIfStmt>? elseIfStmts;
   final ElseStmt? elseStmt;
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) =>
+      visitor.visitConditionalChainStmt(this);
 }
 
 class WhileStmt extends Stmt {
@@ -814,6 +1022,9 @@ class WhileStmt extends Stmt {
 
   final Expr condition;
   final Iterable<Stmt> block;
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitWhileStmt(this);
 }
 
 class IfStmt extends Stmt {
@@ -821,16 +1032,25 @@ class IfStmt extends Stmt {
 
   final Expr expr;
   final Iterable<Stmt> block;
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitIfStmt(this);
 }
 
 class ElseIfStmt extends IfStmt {
   const ElseIfStmt(super.expr, super.block);
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitElseIfStmt(this);
 }
 
 class ElseStmt extends Stmt {
   const ElseStmt(this.block);
 
   final Iterable<Stmt> block;
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitElseStmt(this);
 }
 
 @immutable
@@ -840,14 +1060,14 @@ abstract class Expr {
   // TODO create compiled version with a static type
   // TODO track token
 
-  void visit(ParseTreeVisitor visitor);
+  T accept<T>(ParseTreeVisitor<T> visitor);
 }
 
 class NothingExpr extends Expr {
   const NothingExpr();
 
   @override
-  void visit(ParseTreeVisitor visitor) => visitor.visitNothingExpr(this);
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitNothingExpr(this);
 }
 
 class BinaryExpr extends Expr {
@@ -862,7 +1082,7 @@ class BinaryExpr extends Expr {
   final Expr right;
 
   @override
-  void visit(ParseTreeVisitor visitor) => visitor.visitBinaryExpr(this);
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitBinaryExpr(this);
 }
 
 class UnaryExpr extends Expr {
@@ -875,7 +1095,7 @@ class UnaryExpr extends Expr {
   final Expr primary;
 
   @override
-  void visit(ParseTreeVisitor visitor) => visitor.visitUnaryExpr(this);
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitUnaryExpr(this);
 }
 
 class CallExpr extends Expr {
@@ -897,7 +1117,7 @@ class CallExpr extends Expr {
   }
 
   @override
-  void visit(ParseTreeVisitor visitor) => visitor.visitCallExpr(this);
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitCallExpr(this);
 }
 
 /// An expression dereferencing a data structure with square brackets.
@@ -910,7 +1130,7 @@ class SubExpr extends Expr {
   final Expr subscript;
 
   @override
-  void visit(ParseTreeVisitor visitor) => visitor.visitSubExpr(this);
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitSubExpr(this);
 }
 
 class TypeCast extends Expr {
@@ -925,7 +1145,7 @@ class TypeCast extends Expr {
   }
 
   @override
-  void visit(ParseTreeVisitor visitor) => visitor.visitTypeCast(this);
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitTypeCast(this);
 }
 
 class TypeRef extends Expr {
@@ -950,9 +1170,12 @@ class TypeRef extends Expr {
 
   @override
   String toString() => name;
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitTypeRef(this);
 }
 
-class ListTypeRef extends TypeRef {
+class ListTypeRef implements TypeRef {
   factory ListTypeRef(TypeRef subType) {
     ListTypeRef? maybe = _instances[subType];
     if (maybe != null) {
@@ -963,7 +1186,7 @@ class ListTypeRef extends TypeRef {
     return maybe;
   }
 
-  const ListTypeRef._(this.subType) : super._('unused');
+  const ListTypeRef._(this.subType);
 
   static final Map<TypeRef, ListTypeRef> _instances = <TypeRef, ListTypeRef>{};
 
@@ -971,6 +1194,9 @@ class ListTypeRef extends TypeRef {
 
   @override
   String get name => '${subType.name}[]';
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitListTypeRef(this);
 
   @override
   String toString() => 'ListTypeRef: $name';
@@ -996,6 +1222,9 @@ class IdentifierRef extends Expr {
 
   @override
   String toString() => name;
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitIdentifierRef(this);
 }
 
 class BoolLiteral extends Expr {
@@ -1005,6 +1234,9 @@ class BoolLiteral extends Expr {
 
   @override
   String toString() => '$value';
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitBoolLiteral(this);
 }
 
 class StringLiteral extends Expr {
@@ -1014,12 +1246,18 @@ class StringLiteral extends Expr {
 
   @override
   String toString() => '"$value"';
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitStringLiteral(this);
 }
 
 class NumLiteral extends Expr {
   const NumLiteral(this.value);
 
   final double value;
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitNumLiteral(this);
 }
 
 class ListLiteral extends Expr {
@@ -1034,6 +1272,9 @@ class ListLiteral extends Expr {
         elements.map((Expr expr) => expr.toString()).join(', ');
     return '${type.name}[$elementString]';
   }
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitListLiteral(this);
 }
 
 class ParseError implements Exception {
