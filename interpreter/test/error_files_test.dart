@@ -1,6 +1,6 @@
 import 'dart:io' as io;
 
-import 'package:sol/src/interpreter.dart';
+import 'package:sol/src/interpreter/interpreter.dart';
 import 'package:sol/src/parser/parser.dart';
 import 'package:sol/src/scanner.dart';
 import 'package:sol/src/source_code.dart';
@@ -29,7 +29,7 @@ void main() {
 
     await TestInterpreter(
       parseTree: tree,
-      ctx: Context(workingDir: tempDir),
+      workingDir: tempDir,
     ).interpret();
   }
 

@@ -1,6 +1,5 @@
 /// The interface for an [Scanner], [Parser], and [Interpreter] to communicate
 /// with a frontend.
-
 abstract class EmitMessage {
   const EmitMessage();
 

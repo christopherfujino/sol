@@ -1,14 +1,31 @@
-import 'dart:convert';
+import 'dart:convert' show LineSplitter, utf8;
 import 'dart:io' as io;
 
 import 'package:meta/meta.dart';
 
-import 'emitter.dart';
-import 'parser/parser.dart';
-import 'scanner.dart';
+import '../emitter.dart';
+import '../parser/parser.dart';
+import '../scanner.dart' show TokenType;
+
+import 'context.dart';
+import 'native_functions.dart';
+import 'vals.dart';
 
 class Interpreter {
-  Interpreter({
+  factory Interpreter({
+    required ParseTree parseTree,
+    required io.Directory workingDir,
+    required Emitter emitter,
+  }) {
+    return Interpreter.internal(
+      parseTree: parseTree,
+      ctx: Context(workingDir: workingDir),
+      emitter: emitter,
+    );
+  }
+
+  @visibleForTesting
+  Interpreter.internal({
     required this.parseTree,
     required this.ctx,
     this.emitter,
@@ -60,7 +77,7 @@ class Interpreter {
   ) async {
     final FuncDecl? mainFunc = _functionBindings['main'];
     if (mainFunc == null) {
-      _throwRuntimeError('Could not find a "main" function');
+      throwRuntimeError('Could not find a "main" function');
     }
 
     // TODO read CLI args
@@ -92,7 +109,7 @@ class Interpreter {
       await _assignStmt(stmt);
       return null;
     }
-    _throwRuntimeError('Unimplemented statement type ${stmt.runtimeType}');
+    throwRuntimeError('Unimplemented statement type ${stmt.runtimeType}');
   }
 
   void _registerDeclarations() {
@@ -100,11 +117,11 @@ class Interpreter {
       if (decl is FuncDecl) {
         // TODO should check globally for any identifier with this name
         if (_functionBindings.containsKey(decl.name)) {
-          _throwRuntimeError('Duplicate function named ${decl.name}');
+          throwRuntimeError('Duplicate function named ${decl.name}');
         }
         _functionBindings[decl.name] = decl;
       } else {
-        _throwRuntimeError('Unknown declaration type ${decl.runtimeType}');
+        throwRuntimeError('Unknown declaration type ${decl.runtimeType}');
       }
     }
   }
@@ -117,7 +134,7 @@ class Interpreter {
       ifCondition = await _expr<BoolVal>(statement.ifStmt.expr);
     } on TypeError catch (err) {
       // TODO make nicer message
-      _throwRuntimeError('foo ${statement.ifStmt.expr}\n$err');
+      throwRuntimeError('foo ${statement.ifStmt.expr}\n$err');
     }
     if (ifCondition.val) {
       final BlockExit? exit = await _block(statement.ifStmt.block);
@@ -216,7 +233,7 @@ class Interpreter {
     if (expr is SubExpr) {
       return _subExpr<T>(expr, ctx);
     }
-    _throwRuntimeError('Unimplemented expression type $expr');
+    throwRuntimeError('Unimplemented expression type $expr');
   }
 
   Future<T> _callExpr<T extends Val>(CallExpr expr, Context ctx) async {
@@ -229,7 +246,7 @@ class Interpreter {
         _externalFunctions[expr.name] ?? _functionBindings[expr.name];
 
     if (func == null) {
-      _throwRuntimeError('Tried to call undeclared function ${expr.name}');
+      throwRuntimeError('Tried to call undeclared function ${expr.name}');
     }
 
     final T? returnVal = await _executeFunc<T?>(func, args, ctx);
@@ -265,7 +282,7 @@ class Interpreter {
       final Val arg = args[idx];
       final ValType paramType = _typeRefToValType(param.type);
       if (paramType != arg.type) {
-        _throwRuntimeError(
+        throwRuntimeError(
           'Parameter named ${param.name} expected to be of type $paramType, '
           'got ${arg.type} to function ${func.name}',
         );
@@ -307,7 +324,7 @@ class Interpreter {
     final ValType definedType = _typeRefToValType(func.returnType);
     final ValType actualType = returnVal?.type ?? ValType.nothing;
     if (definedType != actualType) {
-      _throwRuntimeError(
+      throwRuntimeError(
         'Function ${func.name} should return $definedType but it actually '
         'returned $actualType',
       );
@@ -375,7 +392,7 @@ class Interpreter {
     final Val rightVal = await _expr(expr.right);
     // TODO lift check to compiler
     if (leftVal.type != rightVal.type) {
-      _throwRuntimeError(
+      throwRuntimeError(
         'The left and right hand sides of a ${expr.operatorToken} expression '
         'do not match!',
       );
@@ -388,7 +405,7 @@ class Interpreter {
         if (leftVal is StringVal && rightVal is StringVal) {
           return StringVal(leftVal.val + rightVal.val) as T;
         }
-        _throwRuntimeError(
+        throwRuntimeError(
           '"+" operator not implemented for types ${leftVal.runtimeType} and '
           '${rightVal.runtimeType}',
         );
@@ -396,7 +413,7 @@ class Interpreter {
         if (leftVal is NumVal && rightVal is NumVal) {
           return NumVal(leftVal.val - rightVal.val) as T;
         }
-        _throwRuntimeError(
+        throwRuntimeError(
           '"${expr.operatorToken}" operator not implemented for types '
           '${leftVal.runtimeType} and ${rightVal.runtimeType}',
         );
@@ -404,7 +421,7 @@ class Interpreter {
         if (leftVal is NumVal && rightVal is NumVal) {
           return NumVal(leftVal.val * rightVal.val) as T;
         }
-        _throwRuntimeError(
+        throwRuntimeError(
           '"${expr.operatorToken}" operator not implemented for types '
           '${leftVal.runtimeType} and ${rightVal.runtimeType}',
         );
@@ -413,7 +430,7 @@ class Interpreter {
           // TODO divide by zero?
           return NumVal(leftVal.val / rightVal.val) as T;
         }
-        _throwRuntimeError(
+        throwRuntimeError(
           '"${expr.operatorToken}" operator not implemented for types '
           '${leftVal.runtimeType} and ${rightVal.runtimeType}',
         );
@@ -424,28 +441,28 @@ class Interpreter {
       case TokenType.greaterThan:
         if (leftVal is! NumVal) {
           // TODO compiler error
-          _throwRuntimeError('> operator can only be used on numbers');
+          throwRuntimeError('> operator can only be used on numbers');
         }
         // safe cast because of the type check at the start of this function
         return BoolVal(leftVal.val > (rightVal as NumVal).val) as T;
       case TokenType.greaterOrEqual:
         if (leftVal is! NumVal) {
           // TODO compiler error
-          _throwRuntimeError('>= operator can only be used on numbers');
+          throwRuntimeError('>= operator can only be used on numbers');
         }
         // safe cast because of the type check at the start of this function
         return BoolVal(leftVal.val >= (rightVal as NumVal).val) as T;
       case TokenType.lessThan:
         if (leftVal is! NumVal) {
           // TODO compiler error
-          _throwRuntimeError('< operator can only be used on numbers');
+          throwRuntimeError('< operator can only be used on numbers');
         }
         // safe cast because of the type check at the start of this function
         return BoolVal(leftVal.val < (rightVal as NumVal).val) as T;
       case TokenType.lessOrEqual:
         if (leftVal is! NumVal) {
           // TODO compiler error
-          _throwRuntimeError('<= operator can only be used on numbers');
+          throwRuntimeError('<= operator can only be used on numbers');
         }
         // safe cast because of the type check at the start of this function
         return BoolVal(leftVal.val <= (rightVal as NumVal).val) as T;
@@ -514,375 +531,6 @@ class Interpreter {
   }
 }
 
-/// Runtime context, used for resolving identifiers.
-class Context {
-  Context({
-    this.workingDir,
-    this.env,
-    this.parent,
-  });
-
-  final io.Directory? workingDir;
-  final Map<String, String>? env;
-  final Context? parent;
-
-  final List<CallFrame> _callStack = <CallFrame>[];
-
-  /// Create a new [CallFrame].
-  void pushFrame() => _callStack.add(CallFrame());
-
-  /// Pop the last [CallFrame].
-  CallFrame popFrame() => _callStack.removeLast();
-
-  Map<String, Val> get args => _callStack.last.arguments;
-
-  T getVal<T extends Val>(String name) {
-    final CallFrame frame = _callStack.last;
-    Val? val = frame.arguments[name];
-    if (val != null) {
-      return val as T;
-    }
-    // TODO verify no collisions with varBindings
-    val = frame.constBindings[name];
-    if (val != null) {
-      return val as T;
-    }
-    val = frame.varBindings[name];
-    if (val != null) {
-      return val as T;
-    }
-    _throwRuntimeError('Could not resolve identifier $name of type $T');
-  }
-
-  void setVar(String name, Val val) {
-    // verify name not already used
-    if (_callStack.last.arguments[name] != null) {
-      _throwRuntimeError(
-        'Tried to declare identifier $name, but it is already the name of an '
-        'argument',
-      );
-    }
-    // TODO check global constants
-    if (_callStack.last.constBindings[name] != null) {
-      _throwRuntimeError(
-        'Tried to declare identifier $name, but it has already been declared '
-        'as a constant',
-      );
-    }
-    if (_callStack.last.varBindings[name] != null) {
-      _throwRuntimeError(
-        'Tried to declare identifier $name, but it has already been declared '
-        'as a variable',
-      );
-    }
-    _callStack.last.varBindings[name] = val;
-  }
-
-  // An assignment expression (not declaration) must overwrite an already
-  // declared name.
-  void resetVar(String name, Val val) {
-    // verify already exists as a var
-    final Val? prevVal = _callStack.last.varBindings[name];
-    if (prevVal == null) {
-      _throwRuntimeError(
-        '$name is not a variable',
-      );
-    }
-    if (prevVal.type != val.type) {
-      _throwRuntimeError(
-        '$name is of type ${prevVal.type}, but the assignment value $val is of '
-        'type ${val.type}',
-      );
-    }
-    _callStack.last.varBindings[name] = val;
-  }
-
-  void setArg(String name, Val val) {
-    _callStack.last.arguments[name] = val;
-  }
-}
-
-class CallFrame {
-  final Map<String, Val> arguments = <String, Val>{};
-  final Map<String, Val> varBindings = <String, Val>{};
-  final Map<String, Val> constBindings = <String, Val>{};
-
-  @override
-  String toString() => '''
-CallFrame:
-Arguments: ${arguments.entries.map((MapEntry<String, Val> entry) => '${entry.key} -> ${entry.value}').join(', ')}
-Variables: ${varBindings.entries.map((MapEntry<String, Val> entry) => '${entry.key} -> ${entry.value}').join(', ')}
-Constants: ${constBindings.entries.map((MapEntry<String, Val> entry) => '${entry.key} -> ${entry.value}').join(', ')}
-''';
-}
-
-/// An external [FunctionDecl].
-abstract class ExtFuncDecl extends FuncDecl {
-  const ExtFuncDecl({
-    required super.name,
-    required super.params,
-  }) : super(statements: const <Stmt>[]);
-
-  Future<BlockExit> interpret({
-    required Interpreter interpreter,
-    required Context ctx,
-  });
-}
-
-class ValType {
-  const ValType._(this.name);
-
-  final String name;
-
-  static const ValType string = ValType._('String');
-  static const ValType number = ValType._('Number');
-  static const ValType nothing = ValType._('Nothing');
-  static const ValType boolean = ValType._('Boolean');
-
-  @override
-  String toString() => 'ValType: $name';
-}
-
-class ListValType extends ValType {
-  factory ListValType(ValType subType) {
-    ListValType? maybe = _instances[subType];
-    if (maybe != null) {
-      return maybe;
-    }
-    maybe = ListValType._(subType);
-    _instances[subType] = maybe;
-    return maybe;
-  }
-
-  ListValType._(this.subType) : super._(subType.name);
-
-  static final Map<ValType, ListValType> _instances = <ValType, ListValType>{};
-
-  final ValType subType;
-
-  @override
-  String toString() => 'ListValType: $name[]';
-}
-
-abstract class Val {
-  const Val(this.type);
-
-  final ValType type;
-
-  Object? get val;
-
-  bool equalsTo(covariant Val other) {
-    if (runtimeType != other.runtimeType) {
-      _throwRuntimeError('Cannot compare two values of different types!');
-    }
-    return val == other.val;
-  }
-}
-
-/// A null value.
-///
-/// Should only be used for return values of functions that return
-/// [ValType.nothing]. All variables should always have a non-Nothing value.
-class NothingVal extends Val {
-  factory NothingVal() => _instance;
-
-  const NothingVal._() : super(ValType.nothing);
-
-  static const NothingVal _instance = NothingVal._();
-
-  @override
-  Never get val => _throwRuntimeError('You cannot reference a Nothing value!');
-
-  @override
-  bool equalsTo(NothingVal other) => _throwRuntimeError(
-        'You should not be comparing Nothing!',
-      );
-}
-
-class BoolVal extends Val {
-  factory BoolVal(bool val) {
-    return val ? trueVal : falseVal;
-  }
-
-  const BoolVal._(this.val) : super(ValType.boolean);
-
-  static const BoolVal trueVal = BoolVal._(true);
-  static const BoolVal falseVal = BoolVal._(false);
-
-  @override
-  final bool val;
-
-  @override
-  bool equalsTo(BoolVal other) => val == other.val;
-
-  @override
-  String toString() => val.toString();
-}
-
-class StringVal extends Val {
-  factory StringVal(String val) {
-    StringVal? maybe = _instances[val];
-    if (maybe != null) {
-      return maybe;
-    }
-    maybe = StringVal._(val);
-    _instances[val] = maybe;
-    return maybe;
-  }
-
-  const StringVal._(this.val) : super(ValType.string);
-
-  static final Map<String, StringVal> _instances = <String, StringVal>{};
-
-  @override
-  final String val;
-
-  @override
-  String toString() => '"$val"';
-}
-
-class NumVal extends Val {
-  factory NumVal(double val) {
-    NumVal? maybe = _instances[val];
-    if (maybe != null) {
-      return maybe;
-    }
-    maybe = NumVal._(val);
-    _instances[val] = maybe;
-    return maybe;
-  }
-
-  const NumVal._(this.val) : super(ValType.number);
-
-  static final Map<double, NumVal> _instances = <double, NumVal>{};
-
-  @override
-  final double val;
-
-  @override
-  String toString() {
-    if (val == val.ceil()) {
-      return val.toStringAsFixed(0);
-    } else {
-      return val.toString();
-    }
-  }
-}
-
-class ListVal extends Val {
-  ListVal(this.subType, this.val) : super(ListValType(subType));
-
-  @override
-  final List<Val> val;
-  final ValType subType;
-
-  @override
-  bool equalsTo(ListVal other) {
-    if (val.length != other.val.length) {
-      return false;
-    }
-    for (int i = 0; i < val.length; i += 1) {
-      if (!val[i].equalsTo(other.val[i])) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  @override
-  String toString() {
-    final StringBuffer buffer = StringBuffer('[');
-    buffer.write(
-      val.map<String>((Val val) => val.toString()).join(', '),
-    );
-    buffer.write(']');
-    return buffer.toString();
-  }
-}
-
-class PrintFuncDecl extends ExtFuncDecl {
-  const PrintFuncDecl()
-      : super(
-          name: 'print',
-          params: const <Parameter>[
-            Parameter(IdentifierRef('msg'), TypeRef.string)
-          ],
-        );
-
-  @override
-  Future<BlockExit> interpret({
-    required Interpreter interpreter,
-    required Context ctx,
-  }) async {
-    final StringVal message = ctx.args['msg']! as StringVal;
-    // Don't call toString, else we get quotes
-    interpreter.stdoutPrint(
-      message.val,
-    );
-
-    return ReturnValue.nothing;
-  }
-}
-
-class RunFuncDecl extends ExtFuncDecl {
-  RunFuncDecl()
-      : super(
-          name: 'run',
-          params: <Parameter>[
-            Parameter(
-                const IdentifierRef('command'), ListTypeRef(TypeRef.string))
-          ],
-        );
-
-  @override
-  Future<BlockExit> interpret({
-    required Interpreter interpreter,
-    required Context ctx,
-  }) async {
-    if (!ctx.args.containsKey('command')) {
-      _throwRuntimeError(
-        'Function run() expected one arg, got ${ctx.args}',
-      );
-    }
-
-    final Val value = ctx.args['command']!;
-    final List<String> command = <String>[];
-    if (value is ListVal) {
-      for (final Val element in value.val) {
-        command.add((element as StringVal).val);
-      }
-    } else {
-      _throwRuntimeError(
-        'Function run() expected an arg of either String or List<String>, got '
-        '${value.runtimeType}',
-      );
-    }
-
-    final int exitCode = await interpreter.runProcess(
-      command: command,
-      workingDir: ctx.workingDir,
-    );
-    if (exitCode != 0) {
-      _throwRuntimeError('"${command.join(' ')}" exited with code $exitCode');
-    }
-    return ReturnValue.nothing;
-  }
-}
-
-// TODO accept token
-Never _throwRuntimeError(String message) => throw RuntimeError(message);
-
-class RuntimeError implements Exception {
-  const RuntimeError(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
-}
-
-@immutable
-
 /// Interface for [ReturnValue], [BreakSentinel] and [ContinueSentinel].
 abstract class BlockExit {
   const BlockExit();
@@ -899,5 +547,17 @@ class ReturnValue extends BlockExit {
 
   final Val val;
 
-  static const ReturnValue nothing = ReturnValue(NothingVal._instance);
+  static const ReturnValue nothing = ReturnValue(NothingVal.instance);
+}
+
+// TODO accept token
+Never throwRuntimeError(String message) => throw RuntimeError(message);
+
+class RuntimeError implements Exception {
+  const RuntimeError(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }

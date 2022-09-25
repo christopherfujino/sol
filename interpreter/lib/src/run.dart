@@ -4,7 +4,7 @@ import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 
 import 'emitter.dart';
-import 'interpreter.dart';
+import 'interpreter/interpreter.dart';
 import 'parser/parser.dart';
 import 'scanner.dart';
 import 'source_code.dart';
@@ -40,7 +40,6 @@ class RunCommand extends Command<void> {
     final String sourceName = _argResults.rest.first;
     final io.Directory workingDir = io.Directory.current.absolute;
     final io.File sourceFile = io.File(sourceName).absolute;
-    final Context ctx = Context(workingDir: workingDir);
 
     if (!sourceFile.existsSync()) {
       throw RuntimeError(
@@ -55,7 +54,7 @@ class RunCommand extends Command<void> {
 
     await Interpreter(
       parseTree: config,
-      ctx: ctx,
+      workingDir: workingDir,
       emitter: emitter,
     ).interpret();
   }
