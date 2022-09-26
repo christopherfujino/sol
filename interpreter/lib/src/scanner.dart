@@ -64,6 +64,9 @@ enum TokenType {
   /// Operator "/".
   divide,
 
+  /// Operator "%".
+  modulo,
+
   /// Operator "!".
   bang,
 
@@ -323,6 +326,17 @@ Last scanned token: ${_tokenList.last}
       _tokenList.add(
         Token(
           type: TokenType.divide,
+          line: _line,
+          char: _char,
+        ),
+      );
+      _index += 1;
+      return true;
+    }
+    if (source[_index] == '%') {
+      _tokenList.add(
+        Token(
+          type: TokenType.modulo,
           line: _line,
           char: _char,
         ),

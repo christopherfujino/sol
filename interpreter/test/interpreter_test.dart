@@ -160,18 +160,28 @@ Future<void> main() async {
   test('parentheses force precedence', () async {
     final TestInterpreter interpreter =
         await createInterpreter('test/source_files/parens.sol');
-    try {
-      await interpreter.interpret();
-    } on Error catch (err, stacktrace) {
-      print(interpreter.parseTree);
-      print(stacktrace);
-      fail(err.toString());
-    }
+    await interpreter.interpret();
     expect(
       interpreter.stdoutBuffer.toString().trim().split('\n'),
       orderedEquals(<String>[
         '2',
         '0',
+      ]),
+    );
+  });
+
+  test('arithmetic works', () async {
+    final TestInterpreter interpreter =
+        await createInterpreter('test/source_files/arithmetic.sol');
+    await interpreter.interpret();
+
+    expect(
+      interpreter.stdoutBuffer.toString().trim().split('\n'),
+      orderedEquals(<String>[
+        '3',
+        '6',
+        '3.5',
+        '1',
       ]),
     );
   });

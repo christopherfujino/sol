@@ -253,7 +253,7 @@ class Interpreter {
     return returnVal ?? NothingVal() as T;
   }
 
-  /// TODO imporve use of generics
+  /// TODO improve use of generics
   Future<T> _typeCast<T extends Val>(TypeCast expr, Context ctx) async {
     switch (expr.type) {
       case TypeRef.string:
@@ -268,6 +268,7 @@ class Interpreter {
   /// Cast from generic [Val] to [StringVal].
   StringVal _castToString(Val val) {
     if (val is StringVal) {
+      // no-op
       return val;
     }
     if (val is NumVal) {
@@ -454,6 +455,14 @@ class Interpreter {
         if (leftVal is NumVal && rightVal is NumVal) {
           // TODO divide by zero?
           return NumVal(leftVal.val / rightVal.val) as T;
+        }
+        throwRuntimeError(
+          '"${expr.operatorToken}" operator not implemented for types '
+          '${leftVal.runtimeType} and ${rightVal.runtimeType}',
+        );
+      case TokenType.modulo:
+        if (leftVal is NumVal && rightVal is NumVal) {
+          return NumVal(leftVal.val % rightVal.val) as T;
         }
         throwRuntimeError(
           '"${expr.operatorToken}" operator not implemented for types '

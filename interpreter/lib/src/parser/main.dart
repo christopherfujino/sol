@@ -311,11 +311,12 @@ class Parser {
     return left;
   }
 
-  /// unary ( ( "/" | "*" ) unary )* ;
+  /// unary ( ( "/" | "*" | "%" ) unary )* ;
   Expr _factor() {
     Expr left = _unary();
     while (_currentToken!.type == TokenType.divide ||
-        _currentToken!.type == TokenType.multiply) {
+        _currentToken!.type == TokenType.multiply ||
+        _currentToken!.type == TokenType.modulo) {
       final Token operatorToken = _consume(_currentToken!.type);
       final Expr right = _factor();
       left = BinaryExpr(left, operatorToken, right);
