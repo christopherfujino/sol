@@ -178,10 +178,10 @@ Future<void> main() async {
     expect(
       interpreter.stdoutBuffer.toString().trim().split('\n'),
       orderedEquals(<String>[
-        '3',
-        '6',
-        '3.5',
-        '1',
+        '3', // addition
+        '6', // product
+        '3.5', // quotient
+        '1', // modulo
       ]),
     );
   });
