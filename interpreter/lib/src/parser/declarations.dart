@@ -25,6 +25,18 @@ class ConstDecl extends Decl {
   T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitConstDecl(this);
 }
 
+class StructureDecl extends Decl {
+  StructureDecl({
+    required super.name,
+    required this.fields,
+  });
+
+  final Map<String, TypeRef> fields;
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitStructureDecl(this);
+}
+
 class FuncDecl extends Decl {
   const FuncDecl({
     required super.name,
@@ -34,7 +46,7 @@ class FuncDecl extends Decl {
   });
 
   final Iterable<Stmt> statements;
-  final List<Parameter> params;
+  final List<NameTypePair> params;
   final TypeRef? returnType;
 
   @override
@@ -44,24 +56,37 @@ class FuncDecl extends Decl {
   String toString() {
     if (returnType == null) {
       final String paramString =
-          params.map((Parameter param) => param.toString()).join(', ');
+          params.map((NameTypePair param) => param.toString()).join(', ');
       return 'function $name($paramString)';
     }
     final String paramString =
-        params.map((Parameter param) => param.toString()).join(', ');
+        params.map((NameTypePair param) => param.toString()).join(', ');
     return 'function $name($paramString) -> $returnType';
   }
 }
 
-/// A pairing of an [IdentifierRef] and a [TypeRef].
-class Parameter {
-  const Parameter(this.name, this.type);
+/// A pairing of a [String] and a [TypeRef].
+class NameTypePair {
+  const NameTypePair(this.name, this.type);
 
-  final IdentifierRef name;
+  final String name;
   final TypeRef type;
 
   @override
   String toString() {
     return '$name $type';
+  }
+}
+
+/// A pairing of an [IdentifierRef] and an [Expr].
+class NameExprPair {
+  const NameExprPair(this.name, this.expr);
+
+  final IdentifierRef name;
+  final Expr expr;
+
+  @override
+  String toString() {
+    return '$name $expr';
   }
 }

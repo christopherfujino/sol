@@ -24,6 +24,9 @@ enum TokenType {
   /// Keyword "if".
   ifKeyword,
 
+  /// Keyword "structure".
+  structureKeyword,
+
   /// Keyword "else".
   ///
   /// Can be chained as "else if" to be semantically distinct.
@@ -95,9 +98,18 @@ enum TokenType {
   type,
 
   // misc
+
   comma,
   semicolon,
-  hash, // #
+
+  /// ":".
+  colon,
+
+  /// ".".
+  dot,
+
+  /// "#"
+  hash,
 }
 
 class Token {
@@ -250,6 +262,9 @@ Last scanned token: ${_tokenList.last}
       case 'break':
         tokenType = TokenType.breakKeyword;
         break;
+      case 'structure':
+        tokenType = TokenType.structureKeyword;
+        break;
       default:
         return false;
     }
@@ -390,6 +405,17 @@ Last scanned token: ${_tokenList.last}
       _index += 1;
       return true;
     }
+    if (source[_index] == ':') {
+      _tokenList.add(
+        Token(
+          type: TokenType.colon,
+          line: _line,
+          char: _char,
+        ),
+      );
+      _index += 1;
+      return true;
+    }
     if (source[_index] == '+') {
       _tokenList.add(
         Token(
@@ -473,11 +499,18 @@ Last scanned token: ${_tokenList.last}
   }
 
   static final RegExp kIdentifierPattern = RegExp(r'[a-z][a-zA-Z0-9_]*');
+  static final RegExp kFieldAccessPattern = RegExp('(${kIdentifierPattern.pattern})((?:\\.${kIdentifierPattern.pattern})+)');
 
   bool _scanIdentifier() {
     // TODO this can be faster
     final String rest = source.substring(_index);
-    final Match? match = kIdentifierPattern.matchAsPrefix(rest);
+
+    // first check field access, which is longer, then for a single identifier
+    Match? match = kFieldAccessPattern.matchAsPrefix(rest);
+    if (match != null) {
+      throw UnimplementedError('TODO ${match.group(0)}');
+    }
+    match = kIdentifierPattern.matchAsPrefix(rest);
     if (match != null) {
       final String stringMatch = match.group(0)!;
       _tokenList.add(

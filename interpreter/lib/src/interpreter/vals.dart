@@ -14,6 +14,22 @@ class ValType {
   String toString() => 'ValType: $name';
 }
 
+class StructureValType extends ValType {
+  factory StructureValType(String name) {
+    if (_instances.containsKey(name)) {
+      return _instances[name]!;
+    }
+
+    _instances[name] = StructureValType._(name);
+    return _instances[name]!;
+  }
+
+  const StructureValType._(super.name) : super._();
+
+  static final Map<String, StructureValType> _instances =
+      <String, StructureValType>{};
+}
+
 class ListValType extends ValType {
   factory ListValType(ValType subType) {
     ListValType? maybe = _instances[subType];
@@ -137,6 +153,37 @@ class NumVal extends Val {
     } else {
       return val.toString();
     }
+  }
+}
+
+class NameValTypePair {
+  const NameValTypePair(this.name, this.type);
+
+  final String name;
+  final ValType type;
+}
+
+class StructureVal extends Val {
+  StructureVal(String name, this.fields) : super(StructureValType(name));
+
+  final Map<NameValTypePair, Val> fields;
+
+  @override
+  Object? get val => throw UnimplementedError('Not sure how to implement');
+
+  @override
+  bool equalsTo(ListVal other) {
+    throw UnimplementedError('TODO implement');
+  }
+
+  @override
+  String toString() {
+    final StringBuffer buffer = StringBuffer('${type.name}{');
+    fields.forEach((NameValTypePair pair, Val val) {
+      buffer.writeln('${pair.name}: $val');
+    });
+    buffer.writeln('}');
+    return buffer.toString();
   }
 }
 

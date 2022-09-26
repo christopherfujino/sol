@@ -1,4 +1,5 @@
-import '../parser/parser.dart' show FuncDecl, IdentifierRef, ListTypeRef, Parameter, Stmt, TypeRef;
+import '../parser/parser.dart'
+    show FuncDecl, ListTypeRef, NameTypePair, Stmt, TypeRef;
 import 'context.dart';
 import 'main.dart' show throwRuntimeError, BlockExit, Interpreter, ReturnValue;
 import 'vals.dart';
@@ -23,9 +24,7 @@ class PrintFuncDecl extends ExtFuncDecl {
   const PrintFuncDecl()
       : super(
           name: 'print',
-          params: const <Parameter>[
-            Parameter(IdentifierRef('msg'), TypeRef.string)
-          ],
+          params: const <NameTypePair>[NameTypePair('msg', TypeRef.string)],
         );
 
   @override
@@ -47,9 +46,8 @@ class RunFuncDecl extends ExtFuncDecl {
   RunFuncDecl()
       : super(
           name: 'run',
-          params: <Parameter>[
-            Parameter(
-                const IdentifierRef('command'), ListTypeRef(TypeRef.string))
+          params: <NameTypePair>[
+            NameTypePair('command', ListTypeRef(TypeRef.string))
           ],
         );
 

@@ -16,6 +16,7 @@ abstract class ParseTreeVisitor<T> {
   // Declarations
   T visitConstDecl(ConstDecl that);
   T visitFuncDecl(FuncDecl that);
+  T visitStructureDecl(StructureDecl that);
 
   // Expressions
   T visitNothingExpr(NothingExpr that);
@@ -31,6 +32,7 @@ abstract class ParseTreeVisitor<T> {
   T visitStringLiteral(StringLiteral that);
   T visitNumLiteral(NumLiteral that);
   T visitListLiteral(ListLiteral that);
+  T visitStructureLiteral(StructureLiteral that);
 
   // Statements
   T visitVarDeclStmt(VarDeclStmt that);
@@ -96,7 +98,7 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
         yield '(params: ';
 
         yield* _indentBlock(() sync* {
-          for (final Parameter param in that.params) {
+          for (final NameTypePair param in that.params) {
             yield '($param)';
           }
         });
@@ -256,6 +258,11 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
     yield ')';
   }
 
+  @override
+  Iterable<String> visitStructureLiteral(StructureLiteral that) sync* {
+    throw UnimplementedError('TODO');
+  }
+
   // Statements
 
   @override
@@ -356,6 +363,11 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
 
   @override
   Iterable<String> visitWhileStmt(WhileStmt that) sync* {
+    throw UnimplementedError('TODO');
+  }
+
+  @override
+  Iterable<String> visitStructureDecl(StructureDecl that) sync* {
     throw UnimplementedError('TODO');
   }
 }

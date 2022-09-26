@@ -42,6 +42,7 @@ class Parser {
   /// Parse a [Decl].
   ///
   /// If [allowedDeclarations] is null, all declaration types are checked for.
+  // TODO what is allowedDeclarations for?
   Decl _decl({Set<Type>? allowedDeclarations}) {
     final Token currentToken = _currentToken!;
     switch (currentToken.type) {
@@ -59,10 +60,19 @@ class Parser {
             !allowedDeclarations.contains(FuncDecl)) {
           _throwParseError(
             currentToken,
-            'A constant declaration is not allowed in the current context.',
+            'A function declaration is not allowed in the current context.',
           );
         }
         return _funcDecl();
+      case TokenType.structureKeyword:
+        if (allowedDeclarations != null &&
+            !allowedDeclarations.contains(StructureDecl)) {
+          _throwParseError(
+            currentToken,
+            'A structure declaration is not allowed in the current context.',
+          );
+        }
+        return _structureDecl();
       default:
         _throwParseError(
           currentToken,
@@ -100,9 +110,9 @@ class Parser {
 
   FuncDecl _funcDecl() {
     _consume(TokenType.func);
-    final StringToken name = _consume(TokenType.identifier) as StringToken;
+    final StringToken name = _consume<StringToken>(TokenType.identifier);
     _consume(TokenType.openParen);
-    final List<Parameter> params = _paramList();
+    final List<NameTypePair> params = _paramList();
     _consume(TokenType.closeParen);
 
     TypeRef? returnType;
@@ -117,6 +127,34 @@ class Parser {
       params: params,
       statements: statements,
       returnType: returnType,
+    );
+  }
+
+  StructureDecl _structureDecl() {
+    _consume(TokenType.structureKeyword);
+    final StringToken typeName = _consume<StringToken>(TokenType.type);
+    _consume(TokenType.openCurlyBracket);
+    final Map<String, TypeRef> fields = <String, TypeRef>{};
+
+    while (_currentToken!.type != TokenType.closeCurlyBracket) {
+      final NameTypePair fieldPair = _nameTypePair();
+      _consume(TokenType.semicolon);
+      if (fields.containsKey(fieldPair.name)) {
+        // should this be a compiler error?
+        _throwParseError(
+          null,
+          'The field name ${fieldPair.name} appears twice in the '
+          'structure declaration ${fieldPair.name}',
+        );
+      }
+      fields[fieldPair.name] = fieldPair.type;
+    }
+
+    _consume(TokenType.closeCurlyBracket);
+
+    return StructureDecl(
+      name: typeName.value,
+      fields: fields,
     );
   }
 
@@ -377,6 +415,13 @@ class Parser {
         return _typeCast();
       }
 
+      if (_tokenLookahead(const <TokenType>[
+        TokenType.type,
+        TokenType.openCurlyBracket,
+      ])) {
+        return _structureLiteral();
+      }
+
       return _typeExpr();
     }
 
@@ -407,9 +452,16 @@ class Parser {
   ///
   /// Either intrinsic or user-defined.
   TypeRef _typeExpr() {
-    final StringToken token = _consume(TokenType.type) as StringToken;
-    // TODO could be list type
-    return TypeRef(token.value);
+    final StringToken token = _consume<StringToken>(TokenType.type);
+    final TypeRef type = TypeRef(token.value);
+
+    // list type
+    if (_currentToken!.type == TokenType.openSquareBracket) {
+      _consume(TokenType.openSquareBracket);
+      _consume(TokenType.closeSquareBracket);
+      return ListTypeRef(type);
+    }
+    return type;
   }
 
   /// A type cast.
@@ -424,8 +476,40 @@ class Parser {
     return TypeCast(type, expr);
   }
 
+  /// A type cast.
+  ///
+  /// Looks like `TypeRef(expr) -> Val`.
+  StructureLiteral _structureLiteral() {
+    final Map<String, Expr> fields = <String, Expr>{};
+    final StringToken typeName = _consume<StringToken>(TokenType.type);
+    _consume(TokenType.openCurlyBracket);
+    while(_currentToken!.type != TokenType.closeCurlyBracket) {
+      final NameExprPair pair = _nameExprPair();
+      if (fields.containsKey(pair.name.name)) {
+        _throwParseError(
+          null, // TODO
+          'Tried to parse a structure literal with duplicate '
+          'fields named ${pair.name.name}',
+        );
+      }
+      fields[pair.name.name] = pair.expr;
+
+      if (_currentToken!.type == TokenType.closeCurlyBracket) {
+        break;
+      }
+      // else this should be a comma
+      _consume(TokenType.comma);
+    }
+    _consume(TokenType.closeCurlyBracket);
+
+    return StructureLiteral(typeName.value, fields);
+  }
+
+
   ListLiteral _listLiteral() {
-    final TypeRef type = _typeExpr();
+    final StringToken token = _consume<StringToken>(TokenType.type);
+    final TypeRef type = TypeRef(token.value);
+
     final List<Expr> elements = <Expr>[];
 
     _consume(TokenType.openSquareBracket);
@@ -474,14 +558,31 @@ class Parser {
     );
   }
 
+  /// An identifier followed by a [Expr] separated by a colon.
+  ///
+  /// Used in argument lists and structure literals.
+  NameExprPair _nameExprPair() {
+    final IdentifierRef name = _identifierExpr();
+    _consume(TokenType.colon);
+    final Expr expr = _expr();
+    return NameExprPair(name, expr);
+  }
+
+  /// An identifier followed by a type.
+  ///
+  /// Used in parameter lists and structure declarations.
+  NameTypePair _nameTypePair() {
+    final IdentifierRef name = _identifierExpr();
+    final TypeRef type = _typeExpr();
+    return NameTypePair(name.name, type);
+  }
+
   /// Parses identifiers (comma delimited) until a [TokenType.closeParen] is
   /// reached (but not consumed).
-  List<Parameter> _paramList() {
-    final List<Parameter> list = <Parameter>[];
+  List<NameTypePair> _paramList() {
+    final List<NameTypePair> list = <NameTypePair>[];
     while (_currentToken?.type != TokenType.closeParen) {
-      final IdentifierRef name = _identifierExpr();
-      final TypeRef type = _typeExpr();
-      list.add(Parameter(name, type));
+      list.add(_nameTypePair());
       if (_currentToken?.type == TokenType.closeParen) {
         break;
       }
@@ -535,7 +636,7 @@ class Parser {
   /// Consume and return the next token iff it matches [type].
   ///
   /// Throws [ParseError] if the type is not correct.
-  Token _consume(TokenType type) {
+  T _consume<T extends Token>(TokenType type) {
     // this should only be called if you know what's there.
     if (_currentToken!.type != type) {
       _throwParseError(
@@ -545,7 +646,7 @@ class Parser {
     }
     _previousToken = _currentToken;
     _index += 1;
-    return _previousToken!;
+    return _previousToken! as T;
   }
 
   /// Verifies whether or not the [tokenTypes] are next in the [tokenList].

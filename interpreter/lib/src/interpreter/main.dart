@@ -47,6 +47,15 @@ class Interpreter {
   }
 
   final Map<String, FuncDecl> _functionBindings = <String, FuncDecl>{};
+  final Map<String, StructureDecl> _structureBindings =
+      <String, StructureDecl>{};
+
+  Set<String> get _allBindingNames {
+    return <String>{
+      ..._functionBindings.keys,
+      ..._structureBindings.keys,
+    };
+  }
 
   static final Map<String, ExtFuncDecl> _externalFunctions =
       <String, ExtFuncDecl>{
@@ -114,12 +123,16 @@ class Interpreter {
 
   void _registerDeclarations() {
     for (final Decl decl in parseTree.declarations) {
+      if (_allBindingNames.contains(decl.name)) {
+        throwRuntimeError(
+          'There is already a declaration named ${decl.name}',
+        );
+      }
+
       if (decl is FuncDecl) {
-        // TODO should check globally for any identifier with this name
-        if (_functionBindings.containsKey(decl.name)) {
-          throwRuntimeError('Duplicate function named ${decl.name}');
-        }
         _functionBindings[decl.name] = decl;
+      } else if (decl is StructureDecl) {
+        _structureBindings[decl.name] = decl;
       } else {
         throwRuntimeError('Unknown declaration type ${decl.runtimeType}');
       }
@@ -188,12 +201,12 @@ class Interpreter {
   }
 
   Future<void> _varDeclStmt(VarDeclStmt stmt, Context ctx) async {
-    final Val val = await _expr<Val>(stmt.expr);
+    final Val val = await _expr(stmt.expr);
     ctx.setVar(stmt.name, val);
   }
 
   Future<void> _assignStmt(AssignStmt stmt) async {
-    final Val val = await _expr<Val>(stmt.expr);
+    final Val val = await _expr(stmt.expr);
     ctx.resetVar(stmt.name, val);
   }
 
@@ -204,6 +217,10 @@ class Interpreter {
 
     if (expr is ListLiteral) {
       return _list(expr, ctx) as Future<T>;
+    }
+
+    if (expr is StructureLiteral) {
+      return _structureLiteral(expr) as Future<T>;
     }
 
     if (expr is StringLiteral) {
@@ -304,7 +321,7 @@ class Interpreter {
 
     // TODO check lengths
     for (int idx = 0; idx < func.params.length; idx += 1) {
-      final Parameter param = func.params[idx];
+      final NameTypePair param = func.params[idx];
       final Val arg = args[idx];
       final ValType paramType = _typeRefToValType(param.type);
       if (paramType != arg.type) {
@@ -313,7 +330,7 @@ class Interpreter {
           'got ${arg.type} to function ${func.name}',
         );
       }
-      ctx.setArg(param.name.name, arg);
+      ctx.setArg(param.name, arg);
     }
 
     final T returnVal;
@@ -517,6 +534,22 @@ class Interpreter {
       _typeRefToValType(listLiteral.type),
       elements,
     );
+  }
+
+  Future<StructureVal> _structureLiteral(StructureLiteral expr) async {
+    final Map<NameValTypePair, Val> fields = <NameValTypePair, Val>{};
+    for (final MapEntry<String, Expr> entry in expr.fields.entries) {
+      final String name = entry.key;
+      if (fields.containsKey(name)) {
+        throwRuntimeError(
+          'Duplicate field name $name found while interpreting struct literal '
+          '$expr',
+        );
+      }
+      final Val val = await _expr(entry.value);
+      fields[NameValTypePair(name, val.type)] = val;
+    }
+    return StructureVal(expr.name, fields);
   }
 
   Future<BoolVal> _boolLiteral(BoolLiteral expr) {

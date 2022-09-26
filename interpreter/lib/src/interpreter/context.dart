@@ -77,6 +77,7 @@ class Context {
         '$name is not a variable',
       );
     }
+    // TODO compile time error!
     if (prevVal.type != val.type) {
       throwRuntimeError(
         '$name is of type ${prevVal.type}, but the assignment value $val is of '

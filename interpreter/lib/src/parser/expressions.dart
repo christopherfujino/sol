@@ -215,3 +215,16 @@ class ListLiteral extends Expr {
   @override
   T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitListLiteral(this);
 }
+
+class StructureLiteral extends Expr {
+  const StructureLiteral(this.name, this.fields);
+
+  final String name;
+
+  // when compiling these should be sorted so interpretation is deterministic.
+  final Map<String, Expr> fields;
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) =>
+      visitor.visitStructureLiteral(this);
+}
