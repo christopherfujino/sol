@@ -10,7 +10,7 @@ class ParseTree {
   @override
   String toString() {
     const ParseTreePrinter printer = ParseTreePrinter();
-    return printer.print(this);
+    return printer.printTree(this);
   }
 
   T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitParseTree(this);

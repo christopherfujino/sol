@@ -57,7 +57,7 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
     }
   }
 
-  String print(ParseTree that) {
+  String printTree(ParseTree that) {
     final StringBuffer buffer = StringBuffer();
     that.accept(this).forEach(buffer.writeln);
     return buffer.toString();
