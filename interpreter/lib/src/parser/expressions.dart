@@ -71,6 +71,8 @@ class CallExpr extends Expr {
 }
 
 /// An expression dereferencing a data structure with square brackets.
+///
+/// TODO: use generic to differentiate List from Map?
 class SubExpr extends Expr {
   const SubExpr(this.target, this.subscript);
 

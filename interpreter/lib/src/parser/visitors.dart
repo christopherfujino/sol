@@ -48,8 +48,10 @@ abstract class ParseTreeVisitor<T> {
 class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
   const ParseTreePrinter();
 
-  Iterable<String> _indentBlock(Iterable<String> Function() cb,
-      {int level = 1}) sync* {
+  Iterable<String> _indentBlock(
+    Iterable<String> Function() cb, {
+    int level = 1,
+  }) sync* {
     for (final String line in cb()) {
       yield _indentString(line, level);
     }
@@ -65,11 +67,13 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
   Iterable<String> visitParseTree(ParseTree that) sync* {
     yield '(ParseTree';
     yield* _indentBlock(() sync* {
-      for (final Decl decl in that.declarations) {
-        for (final String line in decl.accept(this)) {
-          yield _indentString(line);
+      yield '(declarations:';
+      yield* _indentBlock(() sync* {
+        for (final Decl decl in that.declarations) {
+          yield* decl.accept(this);
         }
-      }
+      });
+      yield ')';
     });
 
     yield ')';
@@ -144,7 +148,7 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
     yield '(CallExpr';
     yield* _indentBlock(() sync* {
       yield '(name: ${that.name})';
-      yield '(argList';
+      yield '(argList:';
       yield* _indentBlock(() sync* {
         for (final Expr arg in that.argList) {
           yield* arg.accept(this);
@@ -159,8 +163,13 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
   Iterable<String> visitSubExpr(SubExpr that) sync* {
     yield '(SubExpr';
     yield* _indentBlock(() sync* {
-      yield 'target: ${that.target}';
-      yield* that.subscript.accept(this);
+      yield '(target: ${that.target})';
+
+      yield '(subscript: ';
+      yield* _indentBlock(() sync* {
+        yield* that.subscript.accept(this);
+      });
+      yield ')';
     });
     yield ')';
   }
@@ -169,8 +178,16 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
   Iterable<String> visitTypeCast(TypeCast that) sync* {
     yield '(TypeCast';
     yield* _indentBlock(() sync* {
-      yield 'type: ';
-      yield* that.type.accept(this);
+      yield '(type: ';
+      yield* _indentBlock(() sync* {
+        yield* that.type.accept(this);
+      });
+      yield ')';
+      yield '(expr: ';
+      yield* _indentBlock(() sync* {
+        yield* that.expr.accept(this);
+      });
+      yield ')';
     });
     yield ')';
   }
@@ -187,7 +204,7 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
 
   @override
   Iterable<String> visitIdentifierRef(IdentifierRef that) sync* {
-    throw UnimplementedError('TODO');
+    yield '(IdentifierRef ${that.name})';
   }
 
   @override
@@ -197,16 +214,12 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
 
   @override
   Iterable<String> visitStringLiteral(StringLiteral that) sync* {
-    yield '(StringLiteral';
-    yield* _indentBlock(() => <String>[_escapeString(that.value)]);
-    yield ')';
+    yield '(StringLiteral ${_escapeString(that.value)})';
   }
 
   @override
   Iterable<String> visitNumLiteral(NumLiteral that) sync* {
-    yield '(NumLiteral';
-    yield* _indentBlock(() => <String>[that.value.toString()]);
-    yield ')';
+    yield '(NumLiteral ${that.value})';
   }
 
   @override
@@ -248,7 +261,16 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
 
   @override
   Iterable<String> visitAssignStmt(AssignStmt that) sync* {
-    throw UnimplementedError('TODO');
+    yield '(AssignStmt';
+    yield* _indentBlock(() sync* {
+      yield '(name: ${that.name})';
+      yield '(expr:';
+      yield* _indentBlock(() sync* {
+        yield* that.expr.accept(this);
+      });
+      yield ')';
+    });
+    yield ')';
   }
 
   @override

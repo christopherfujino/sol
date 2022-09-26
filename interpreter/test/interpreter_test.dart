@@ -160,7 +160,13 @@ Future<void> main() async {
   test('parentheses force precedence', () async {
     final TestInterpreter interpreter =
         await createInterpreter('test/source_files/parens.sol');
-    await interpreter.interpret();
+    try {
+      await interpreter.interpret();
+    } on Error catch (err, stacktrace) {
+      print(interpreter.parseTree);
+      print(stacktrace);
+      fail(err.toString());
+    }
     expect(
       interpreter.stdoutBuffer.toString().trim().split('\n'),
       orderedEquals(<String>[
@@ -173,19 +179,14 @@ Future<void> main() async {
   test('list literals work', () async {
     final TestInterpreter interpreter =
         await createInterpreter('test/source_files/lists.sol');
-    try {
-      await interpreter.interpret();
-    } on Object catch (err, stacktrace) {
-      print('hit interpreter error');
-      print(interpreter.parseTree);
-      print(err);
-      print(stacktrace);
-      fail('TODO: remove try-catch');
-    }
+    await interpreter.interpret();
 
     expect(
       interpreter.stdoutBuffer.toString().trim().split('\n'),
-      contains('foo bar'),
+      orderedEquals(<String>[
+        'a',
+        'b',
+      ]),
     );
   });
 }

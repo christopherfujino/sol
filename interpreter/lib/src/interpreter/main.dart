@@ -219,7 +219,7 @@ class Interpreter {
     }
 
     if (expr is IdentifierRef) {
-      return _resolveIdentifier(expr, ctx) as Future<T>;
+      return _resolveIdentifier<T>(expr, ctx);
     }
 
     if (expr is BinaryExpr) {
@@ -253,19 +253,44 @@ class Interpreter {
     return returnVal ?? NothingVal() as T;
   }
 
+  /// TODO imporve use of generics
   Future<T> _typeCast<T extends Val>(TypeCast expr, Context ctx) async {
     switch (expr.type) {
       case TypeRef.string:
-        final Val val = await _expr(expr.expr);
-        // TODO explicitly check with helpful error
-        return StringVal(val.toString()) as T;
+        final Val val = await _expr<Val>(expr.expr);
+
+        return _castToString(val) as T;
       default:
         throw UnimplementedError('Cast to type ${expr.type} not implemented');
     }
   }
 
+  /// Cast from generic [Val] to [StringVal].
+  StringVal _castToString(Val val) {
+    if (val is StringVal) {
+      return val;
+    }
+    if (val is NumVal) {
+      // NumVal.toString() handles int truncation.
+      return StringVal(val.toString());
+    }
+    throw UnimplementedError(
+      'TODO implement casting from ${val.runtimeType} to StringVal',
+    );
+  }
+
   Future<T> _subExpr<T extends Val>(SubExpr expr, Context ctx) async {
-    throw UnimplementedError('TODO');
+    // TODO implement for maps
+    final ListVal list = ctx.getVal<ListVal>(expr.target);
+    final NumVal sub = await _expr<NumVal>(expr.subscript);
+    if (list.val.length - 1 < sub.val) {
+      throwRuntimeError(
+        'Tried to access element ${sub.val} from a list with '
+        '${list.val.length} elements!',
+      );
+    }
+
+    return list.val[sub.val.toInt()] as T;
   }
 
   Future<T> _executeFunc<T extends Val?>(
@@ -356,11 +381,11 @@ class Interpreter {
     return null;
   }
 
-  Future<Val> _resolveIdentifier(
+  Future<T> _resolveIdentifier<T extends Val>(
     IdentifierRef identifier,
     Context ctx,
   ) async {
-    final Val val = ctx.getVal(identifier.name);
+    final T val = ctx.getVal<T>(identifier.name);
     if (val == null) {
       throw UnimplementedError(
         "Don't know how to resolve identifier ${identifier.name}",

@@ -1,5 +1,5 @@
 function main() {
   variable letters = String["a", "b"];
-  print(letters[0]);
-  print(letters[1]);
+  print(String(letters[0]));
+  print(String(letters[1]));
 }
