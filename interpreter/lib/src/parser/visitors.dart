@@ -89,15 +89,20 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
   Iterable<String> visitFuncDecl(FuncDecl that) sync* {
     yield '(FuncDecl';
     yield* _indentBlock(() sync* {
-      yield '(params: ';
+      yield '(name: ${that.name})';
+      if (that.params.isEmpty) {
+        yield '(params: ())';
+      } else {
+        yield '(params: ';
 
-      yield* _indentBlock(() sync* {
-        for (final Parameter param in that.params) {
-          yield '($param)';
-        }
-      });
+        yield* _indentBlock(() sync* {
+          for (final Parameter param in that.params) {
+            yield '($param)';
+          }
+        });
 
-      yield '),';
+        yield '),';
+      }
       yield '(block: ';
       yield* _indentBlock(() sync* {
         for (final Stmt stmt in that.statements) {
@@ -120,16 +125,25 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
   Iterable<String> visitBinaryExpr(BinaryExpr that) sync* {
     yield '(BinaryExpr';
 
-    // indent
-    for (final String left in that.left.accept(this)) {
-      yield _indentString(left);
-    }
-    yield _indentString(that.operatorToken.type.toString());
+    yield* _indentBlock(() sync* {
+      // left
+      yield '(left:';
+      yield* _indentBlock(() sync* {
+        yield* that.left.accept(this);
+      });
+      yield ')';
 
-    for (final String right in that.right.accept(this)) {
-      yield _indentString(right);
-    }
-    // dedent
+      // token
+      yield '(operatorToken: ${that.operatorToken.type})';
+
+      // right
+      yield '(right:';
+      yield* _indentBlock(() sync* {
+        yield* that.right.accept(this);
+      });
+      yield ')';
+    });
+
     yield ')';
   }
 
@@ -280,7 +294,15 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
 
   @override
   Iterable<String> visitReturnStmt(ReturnStmt that) sync* {
-    throw UnimplementedError('TODO');
+    if (that.returnValue == null) {
+      yield '(ReturnStmt)';
+    } else {
+      yield '(ReturnStmt';
+      yield* _indentBlock(() sync* {
+        yield* that.returnValue!.accept(this);
+      });
+      yield ')';
+    }
   }
 
   @override
@@ -292,12 +314,34 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
 
   @override
   Iterable<String> visitConditionalChainStmt(ConditionalChainStmt that) sync* {
-    throw UnimplementedError('TODO');
+    yield '(ConditionalChainStmt';
+    yield* _indentBlock(() sync* {
+      yield* that.ifStmt.accept(this);
+    });
+    yield ')';
   }
 
   @override
   Iterable<String> visitIfStmt(IfStmt that) sync* {
-    throw UnimplementedError('TODO');
+    yield '(IfStmt';
+    yield* _indentBlock(() sync* {
+      // .expr: Expr
+      yield '(expr:';
+      yield* _indentBlock(() sync* {
+        yield* that.expr.accept(this);
+      });
+      yield ')';
+
+      // .block: Iterable<Stmt>
+      yield '(block:';
+      yield* _indentBlock(() sync* {
+        for (final Stmt stmt in that.block) {
+          yield* stmt.accept(this);
+        }
+      });
+      yield ')';
+    });
+    yield ')';
   }
 
   @override

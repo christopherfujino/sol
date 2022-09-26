@@ -6,6 +6,6 @@ function fibonacci(n Number) -> Number {
 }
 
 function main() {
-  variable fib4 = fibonacci(20);
-  print(String(fib4));
+  variable fib20 = fibonacci(20);
+  print(String(fib20)); # 6765
 }
