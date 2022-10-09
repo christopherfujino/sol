@@ -101,6 +101,9 @@ class Interpreter {
     if (stmt is WhileStmt) {
       return _whileStmt(stmt);
     }
+    if (stmt is ForStmt) {
+      return _forStmt(stmt);
+    }
     if (stmt is ReturnStmt) {
       throw StateError(
         'This should be unreachable, should be handled in the _block loop',
@@ -150,7 +153,7 @@ class Interpreter {
       throwRuntimeError('foo ${statement.ifStmt.expr}\n$err');
     }
     if (ifCondition.val) {
-      final BlockExit? exit = await _block(statement.ifStmt.block);
+      final BlockExit? exit = await _block(statement.ifStmt.block, Environment());
       if (exit != null) {
         return exit;
       }
@@ -161,7 +164,7 @@ class Interpreter {
           final BoolVal condition = await _expr<BoolVal>(stmt.expr);
           if (condition.val) {
             hitAnElseIf = true;
-            final BlockExit? exit = await _block(stmt.block);
+            final BlockExit? exit = await _block(stmt.block, Environment());
             if (exit != null) {
               return exit;
             }
@@ -169,7 +172,10 @@ class Interpreter {
           }
         }
         if (!hitAnElseIf && statement.elseStmt != null) {
-          final BlockExit? exit = await _block(statement.elseStmt!.block);
+          final BlockExit? exit = await _block(
+            statement.elseStmt!.block,
+            Environment(),
+          );
           if (exit != null) {
             return exit;
           }
@@ -181,7 +187,31 @@ class Interpreter {
 
   Future<BlockExit?> _whileStmt(WhileStmt stmt) async {
     while ((await _expr<BoolVal>(stmt.condition)).val) {
-      final BlockExit? exit = await _block(stmt.block);
+      final BlockExit? exit = await _block(stmt.block, Environment());
+      switch (exit.runtimeType) {
+        case BreakSentinel:
+          return null;
+        case ReturnValue:
+          return exit;
+        case Null:
+          break;
+        default:
+          throw UnimplementedError('cannot handle ${exit.runtimeType}');
+      }
+    }
+    return null;
+  }
+
+  Future<BlockExit?> _forStmt(ForStmt stmt) async {
+    final ListVal iterable = await _expr<ListVal>(stmt.iterable);
+    final int length = iterable.val.length;
+    for (int i = 0; i < length; i += 1) {
+      final Environment frame = Environment(varBindings: <String, Val>{
+        stmt.index.name: NumVal(i.toDouble()),
+        stmt.element.name: iterable.val[i],
+      });
+      // concurrent modification check?
+      final BlockExit? exit = await _block(stmt.block, frame);
       switch (exit.runtimeType) {
         case BreakSentinel:
           return null;
@@ -207,7 +237,7 @@ class Interpreter {
 
   Future<void> _assignStmt(AssignStmt stmt) async {
     final Val val = await _expr(stmt.expr);
-    ctx.resetVar(stmt.name, val);
+    ctx.reassignVar(stmt.name, val);
   }
 
   Future<T> _expr<T extends Val>(Expr expr) {
@@ -321,8 +351,8 @@ class Interpreter {
     Context ctx,
   ) async {
     await emit('Executing $func');
-    ctx.pushFrame();
 
+    final Map<String, Val> arguments = <String, Val>{};
     // TODO check lengths
     for (int idx = 0; idx < func.params.length; idx += 1) {
       final NameTypePair param = func.params[idx];
@@ -334,11 +364,15 @@ class Interpreter {
           'got ${arg.type} to function ${func.name}',
         );
       }
-      ctx.setArg(param.name, arg);
+      arguments[param.name] = arg;
     }
 
+    final Environment frame = Environment(
+      arguments: arguments,
+    );
     final T returnVal;
     if (func is ExtFuncDecl) {
+      ctx.pushEnvironment(frame);
       final BlockExit exit = await func.interpret(
         interpreter: this,
         ctx: ctx,
@@ -350,8 +384,12 @@ class Interpreter {
         );
       }
       returnVal = exit.val as T;
+      ctx.popEnvironment();
     } else {
-      final BlockExit? exit = await _block(func.statements);
+      final BlockExit? exit = await _block(
+        func.statements,
+        frame,
+      );
       if (exit != null && exit is! ReturnValue) {
         throw UnimplementedError(
           'Not sure how to handle a ${exit.runtimeType} returned from a '
@@ -365,8 +403,6 @@ class Interpreter {
       }
     }
 
-    ctx.popFrame();
-
     // validate return value type
     final ValType definedType = _typeRefToValType(func.returnType);
     final ValType actualType = returnVal?.type ?? ValType.nothing;
@@ -379,13 +415,20 @@ class Interpreter {
     return returnVal;
   }
 
-  Future<BlockExit?> _block(Iterable<Stmt> statements) async {
+  Future<BlockExit?> _block(
+    Iterable<Stmt> statements,
+    Environment nextFrame,
+  ) async {
+    ctx.pushEnvironment(nextFrame);
     for (final Stmt stmt in statements) {
       if (stmt is BlockExitStmt) {
         switch (stmt.runtimeType) {
+          case ContinueStmt:
+            // Don't actually execute a [ContinueStmt] as there is nothing to do
+            continue;
           case BreakStmt:
-            // Don't actually execute a [BreakStmt] as there is nothing to do.
-            return BreakSentinel.instance;
+            // Don't actually execute a [BreakStmt] as there is nothing to do
+            return BreakSentinel();
           case ReturnStmt:
             final ReturnStmt returnStmt = stmt as ReturnStmt;
             if (returnStmt.returnValue == null) {
@@ -400,6 +443,7 @@ class Interpreter {
         return exit;
       }
     }
+    ctx.popEnvironment();
     return null;
   }
 
@@ -637,6 +681,7 @@ abstract class BlockExit {
 }
 
 class BreakSentinel extends BlockExit {
+  factory BreakSentinel() => instance;
   const BreakSentinel._();
 
   static const BreakSentinel instance = BreakSentinel._();

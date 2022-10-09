@@ -177,8 +177,14 @@ class Parser {
     if (_currentToken!.type == TokenType.whileKeyword) {
       return _whileStmt();
     }
+    if (_currentToken!.type == TokenType.forKeyword) {
+      return _forStmt();
+    }
     if (_currentToken!.type == TokenType.breakKeyword) {
       return _breakStmt();
+    }
+    if (_currentToken!.type == TokenType.continueKeyword) {
+      return _continueStmt();
     }
     if (_currentToken!.type == TokenType.returnKeyword) {
       return _returnStmt();
@@ -249,10 +255,27 @@ class Parser {
     return WhileStmt(condition, block);
   }
 
+  ForStmt _forStmt() {
+    _consume(TokenType.forKeyword);
+    final IdentifierRef index = _identifierExpr();
+    _consume(TokenType.comma);
+    final IdentifierRef element = _identifierExpr();
+    _consume(TokenType.inKeyword);
+    final Expr iterable = _expr();
+    final Iterable<Stmt> block = _block();
+    return ForStmt(index, element, iterable, block);
+  }
+
   BreakStmt _breakStmt() {
     _consume(TokenType.breakKeyword);
     _consume(TokenType.semicolon);
     return BreakStmt();
+  }
+
+  ContinueStmt _continueStmt() {
+    _consume(TokenType.continueKeyword);
+    _consume(TokenType.semicolon);
+    return ContinueStmt();
   }
 
   ReturnStmt _returnStmt() {
@@ -443,13 +466,6 @@ class Parser {
 
     // This should be last
     if (_currentToken!.type == TokenType.identifier) {
-      //// check first for field access
-      //if (_tokenLookahead(const <TokenType>[
-      //  TokenType.identifier,
-      //  TokenType.dot,
-      //])) {
-      //  return _fieldAccessExpr();
-      //}
       return _identifierExpr();
     }
 

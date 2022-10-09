@@ -51,6 +51,17 @@ class BreakStmt extends BlockExitStmt {
   T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitBreakStmt(this);
 }
 
+class ContinueStmt extends BlockExitStmt {
+  factory ContinueStmt() => instance;
+
+  const ContinueStmt._();
+
+  static const ContinueStmt instance = ContinueStmt._();
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitContinueStmt(this);
+}
+
 class ReturnStmt extends BlockExitStmt {
   const ReturnStmt(this.returnValue);
 
@@ -100,6 +111,18 @@ class WhileStmt extends Stmt {
 
   @override
   T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitWhileStmt(this);
+}
+
+class ForStmt extends Stmt {
+  const ForStmt(this.index, this.element, this.iterable, this.block);
+
+  final IdentifierRef index;
+  final IdentifierRef element;
+  final Expr iterable;
+  final Iterable<Stmt> block;
+
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitForStmt(this);
 }
 
 class IfStmt extends Stmt {

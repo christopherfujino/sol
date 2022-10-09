@@ -39,10 +39,12 @@ abstract class ParseTreeVisitor<T> {
   T visitVarDeclStmt(VarDeclStmt that);
   T visitAssignStmt(AssignStmt that);
   T visitBreakStmt(BreakStmt that);
+  T visitContinueStmt(ContinueStmt that);
   T visitReturnStmt(ReturnStmt that);
   T visitBareStmt(BareStmt that);
   T visitConditionalChainStmt(ConditionalChainStmt that);
   T visitWhileStmt(WhileStmt that);
+  T visitForStmt(ForStmt that);
   T visitIfStmt(IfStmt that);
   T visitElseIfStmt(ElseIfStmt that);
   T visitElseStmt(ElseStmt that);
@@ -312,6 +314,11 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
   }
 
   @override
+  Iterable<String> visitContinueStmt(ContinueStmt that) sync* {
+    throw UnimplementedError('TODO');
+  }
+
+  @override
   Iterable<String> visitReturnStmt(ReturnStmt that) sync* {
     if (that.returnValue == null) {
       yield '(ReturnStmt)';
@@ -375,6 +382,11 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
 
   @override
   Iterable<String> visitWhileStmt(WhileStmt that) sync* {
+    throw UnimplementedError('TODO');
+  }
+
+  @override
+  Iterable<String> visitForStmt(ForStmt that) sync* {
     throw UnimplementedError('TODO');
   }
 

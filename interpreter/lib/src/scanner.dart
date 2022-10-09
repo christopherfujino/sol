@@ -18,8 +18,17 @@ enum TokenType {
   /// Keyword "break".
   breakKeyword,
 
+  /// Keyword "continue".
+  continueKeyword,
+
   /// Keyword "while".
   whileKeyword,
+
+  /// Keyword "for".
+  forKeyword,
+
+  /// Keyword "in".
+  inKeyword,
 
   /// Keyword "if".
   ifKeyword,
@@ -262,8 +271,17 @@ Last scanned token: ${_tokenList.last}
       case 'break':
         tokenType = TokenType.breakKeyword;
         break;
+      case 'continue':
+        tokenType = TokenType.continueKeyword;
+        break;
       case 'structure':
         tokenType = TokenType.structureKeyword;
+        break;
+      case 'for':
+        tokenType = TokenType.forKeyword;
+        break;
+      case 'in':
+        tokenType = TokenType.inKeyword;
         break;
       default:
         return false;

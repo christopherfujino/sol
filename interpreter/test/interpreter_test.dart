@@ -212,6 +212,16 @@ Future<void> main() async {
         'Bob is enrolled in Calculus',
       ]),
     );
+  });
 
+  test('for loops can iterate lists', () async {
+    final TestInterpreter interpreter =
+        await createInterpreter('test/source_files/for_loop.sol');
+    await interpreter.interpret();
+
+    expect(
+      interpreter.stdoutBuffer.toString().trim(),
+      'The biggest number is 7',
+    );
   });
 }
