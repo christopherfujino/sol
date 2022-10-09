@@ -432,30 +432,33 @@ class Interpreter {
     Environment nextFrame,
   ) async {
     ctx.pushEnvironment(nextFrame);
-    for (final Stmt stmt in statements) {
-      if (stmt is BlockExitStmt) {
-        switch (stmt.runtimeType) {
-          case ContinueStmt:
-            // Don't actually execute a [ContinueStmt] as there is nothing to do
-            continue;
-          case BreakStmt:
-            // Don't actually execute a [BreakStmt] as there is nothing to do
-            return BreakSentinel();
-          case ReturnStmt:
-            final ReturnStmt returnStmt = stmt as ReturnStmt;
-            if (returnStmt.returnValue == null) {
-              return ReturnValue.nothing;
-            }
-            return ReturnValue(await _expr(returnStmt.returnValue!));
-          // TODO handle continue statement
+    try {
+      for (final Stmt stmt in statements) {
+        if (stmt is BlockExitStmt) {
+          switch (stmt.runtimeType) {
+            case ContinueStmt:
+              // Don't actually execute a [ContinueStmt] as there is nothing to do
+              continue;
+            case BreakStmt:
+              // Don't actually execute a [BreakStmt] as there is nothing to do
+              return BreakSentinel();
+            case ReturnStmt:
+              final ReturnStmt returnStmt = stmt as ReturnStmt;
+              if (returnStmt.returnValue == null) {
+                return ReturnValue.nothing;
+              }
+              return ReturnValue(await _expr(returnStmt.returnValue!));
+            // TODO handle continue statement
+          }
+        }
+        final BlockExit? exit = await _stmt(stmt);
+        if (exit != null) {
+          return exit;
         }
       }
-      final BlockExit? exit = await _stmt(stmt);
-      if (exit != null) {
-        return exit;
-      }
+    } finally {
+      ctx.popEnvironment();
     }
-    ctx.popEnvironment();
     return null;
   }
 

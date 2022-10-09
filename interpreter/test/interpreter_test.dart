@@ -224,4 +224,15 @@ Future<void> main() async {
       'The biggest number is 7',
     );
   });
+
+  test('recursion works', () async {
+    final TestInterpreter interpreter =
+        await createInterpreter('test/source_files/fibonacci.sol');
+    await interpreter.interpret();
+
+    expect(
+      interpreter.stdoutBuffer.toString().trim(),
+      '6765',
+    );
+  });
 }

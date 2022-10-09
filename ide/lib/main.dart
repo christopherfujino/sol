@@ -68,7 +68,8 @@ function main() {
         entrySourceCode: sourceCode,
       ).parse();
     } on sol.ParseError catch (err) {
-      io.stderr.writeln(err);
+      debugPrint(err.toString());
+      //io.stderr.writeln(err);
       setState(() => isInterpreting = false);
       return;
     }
@@ -84,7 +85,8 @@ function main() {
         }
       ).interpret();
     } on sol.RuntimeError catch (err) {
-      io.stderr.writeln(err);
+      debugPrint(err.toString());
+      //io.stderr.writeln(err);
       setState(() => isInterpreting = false);
       return;
     }
@@ -126,7 +128,7 @@ function main() {
           // horizontal).
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            child: Row(children: <Widget>[
+            Row(children: <Widget>[
               Flexible(
                   child: TextFormField(
                 controller: _controller,
