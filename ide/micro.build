@@ -1,0 +1,10 @@
+target main {
+  const deps = [ide];
+}
+
+target ide {
+  function build() {
+    run("flutter build web");
+    run("cp -R ./build/web ../build/web-ide");
+  }
+}
