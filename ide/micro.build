@@ -4,7 +4,7 @@ target main {
 
 target ide {
   function build() {
-    run("flutter build web");
+    run("flutter build web --base-href=/sol_builds/");
     run("cp -R ./build/web ../build/web-ide");
   }
 }
