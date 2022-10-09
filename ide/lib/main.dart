@@ -77,9 +77,11 @@ function main() {
         parseTree: parseTree,
         workingDir: io.Directory('.'), // TODO get rid of
         emitter: (sol.EmitMessage msg) async {
-          setState(() => output += '$msg\n');
           return null;
         },
+        stdoutOverride: (String msg) {
+          setState(() => output += '$msg\n');
+        }
       ).interpret();
     } on sol.RuntimeError catch (err) {
       io.stderr.writeln(err);
@@ -124,7 +126,7 @@ function main() {
           // horizontal).
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Row(children: <Widget>[
+            child: Row(children: <Widget>[
               Flexible(
                   child: TextFormField(
                 controller: _controller,

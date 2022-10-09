@@ -16,11 +16,15 @@ class Interpreter {
     required ParseTree parseTree,
     required io.Directory workingDir,
     required Emitter emitter,
+    void Function(String)? stdoutOverride,
+    void Function(String)? stderrOverride,
   }) {
     return Interpreter.internal(
       parseTree: parseTree,
       ctx: Context(workingDir: workingDir),
       emitter: emitter,
+      stdoutOverride: stdoutOverride,
+      stderrOverride: stderrOverride,
     );
   }
 
@@ -29,12 +33,16 @@ class Interpreter {
     required this.parseTree,
     required this.ctx,
     this.emitter,
+    this.stdoutOverride,
+    this.stderrOverride,
   });
 
   final ParseTree parseTree;
   final Context ctx;
 
   final Emitter emitter;
+  final void Function(String)? stdoutOverride;
+  final void Function(String)? stderrOverride;
 
   Future<void> emit(String msg) async {
     if (emitter == null) {
@@ -65,7 +73,11 @@ class Interpreter {
 
   //visibleForOverriding
   void stdoutPrint(String msg) {
-    io.stdout.writeln(msg);
+    if (stdoutOverride != null) {
+      stdoutOverride!(msg);
+    } else {
+      io.stdout.writeln(msg);
+    }
   }
 
   //visibleForOverriding
