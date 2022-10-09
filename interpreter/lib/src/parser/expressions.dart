@@ -228,3 +228,14 @@ class StructureLiteral extends Expr {
   T accept<T>(ParseTreeVisitor<T> visitor) =>
       visitor.visitStructureLiteral(this);
 }
+
+class FieldAccessExpr extends Expr {
+  const FieldAccessExpr(this.identifierChain)
+      : assert(identifierChain.length > 1);
+
+  // Use [IdentifierRef] because it will eventually wrap a Token for debugging.
+  final List<IdentifierRef> identifierChain;
+  @override
+  T accept<T>(ParseTreeVisitor<T> visitor) =>
+      visitor.visitFieldAccessExpr(this);
+}

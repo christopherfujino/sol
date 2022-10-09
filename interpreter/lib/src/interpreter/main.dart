@@ -250,6 +250,10 @@ class Interpreter {
     if (expr is SubExpr) {
       return _subExpr<T>(expr, ctx);
     }
+
+    if (expr is FieldAccessExpr) {
+      return _fieldAccessExpr<T>(expr);
+    }
     throwRuntimeError('Unimplemented expression type $expr');
   }
 
@@ -537,7 +541,7 @@ class Interpreter {
   }
 
   Future<StructureVal> _structureLiteral(StructureLiteral expr) async {
-    final Map<NameValTypePair, Val> fields = <NameValTypePair, Val>{};
+    final Map<String, Val> fields = <String, Val>{};
     for (final MapEntry<String, Expr> entry in expr.fields.entries) {
       final String name = entry.key;
       if (fields.containsKey(name)) {
@@ -547,7 +551,7 @@ class Interpreter {
         );
       }
       final Val val = await _expr(entry.value);
-      fields[NameValTypePair(name, val.type)] = val;
+      fields[name] = val;
     }
     return StructureVal(expr.name, fields);
   }
@@ -568,6 +572,23 @@ class Interpreter {
     return Future<NumVal>.value(
       NumVal(expr.value),
     );
+  }
+
+  Future<T> _fieldAccessExpr<T extends Val>(FieldAccessExpr expr) async {
+    Val currentVal = ctx.getVal<StructureVal>(expr.identifierChain[0].name);
+    for (int i = 1; i < expr.identifierChain.length; i += 1) {
+      final IdentifierRef currentIdentifier = expr.identifierChain[i];
+      // TODO support methods
+      final Val? fieldVal =
+          (currentVal as StructureVal).fields[currentIdentifier.name];
+      if (fieldVal == null) {
+        throwRuntimeError(
+          'Failed accessing $currentIdentifier from $currentVal',
+        );
+      }
+      currentVal = fieldVal;
+    }
+    return currentVal as T;
   }
 
   Future<int> runProcess({

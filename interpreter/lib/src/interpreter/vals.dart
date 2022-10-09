@@ -166,7 +166,7 @@ class NameValTypePair {
 class StructureVal extends Val {
   StructureVal(String name, this.fields) : super(StructureValType(name));
 
-  final Map<NameValTypePair, Val> fields;
+  final Map<String, Val> fields;
 
   @override
   Object? get val => throw UnimplementedError('Not sure how to implement');
@@ -179,8 +179,8 @@ class StructureVal extends Val {
   @override
   String toString() {
     final StringBuffer buffer = StringBuffer('${type.name}{');
-    fields.forEach((NameValTypePair pair, Val val) {
-      buffer.writeln('${pair.name}: $val');
+    fields.forEach((String name, Val val) {
+      buffer.writeln('$name: $val');
     });
     buffer.writeln('}');
     return buffer.toString();

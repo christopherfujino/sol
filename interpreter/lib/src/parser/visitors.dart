@@ -33,6 +33,7 @@ abstract class ParseTreeVisitor<T> {
   T visitNumLiteral(NumLiteral that);
   T visitListLiteral(ListLiteral that);
   T visitStructureLiteral(StructureLiteral that);
+  T visitFieldAccessExpr(FieldAccessExpr that);
 
   // Statements
   T visitVarDeclStmt(VarDeclStmt that);
@@ -368,6 +369,11 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
 
   @override
   Iterable<String> visitStructureDecl(StructureDecl that) sync* {
+    throw UnimplementedError('TODO');
+  }
+
+  @override
+  Iterable<String> visitFieldAccessExpr(FieldAccessExpr that) sync* {
     throw UnimplementedError('TODO');
   }
 }

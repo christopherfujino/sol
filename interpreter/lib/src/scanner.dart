@@ -498,8 +498,9 @@ Last scanned token: ${_tokenList.last}
     return false;
   }
 
-  static final RegExp kIdentifierPattern = RegExp(r'[a-z][a-zA-Z0-9_]*');
-  static final RegExp kFieldAccessPattern = RegExp('(${kIdentifierPattern.pattern})((?:\\.${kIdentifierPattern.pattern})+)');
+  static final RegExp kIdentifierPattern = RegExp(r'[a-z]\w*');
+  static final RegExp kFieldAccessPattern = RegExp(
+      '(${kIdentifierPattern.pattern})((?:\\.${kIdentifierPattern.pattern})+)');
 
   bool _scanIdentifier() {
     // TODO this can be faster
@@ -508,26 +509,53 @@ Last scanned token: ${_tokenList.last}
     // first check field access, which is longer, then for a single identifier
     Match? match = kFieldAccessPattern.matchAsPrefix(rest);
     if (match != null) {
-      throw UnimplementedError('TODO ${match.group(0)}');
+      final String head = match.group(1)!;
+      _tokenList.add(StringToken(
+        type: TokenType.identifier,
+        value: head,
+        line: _line,
+        char: _char,
+      ));
+      _index += head.length;
+      assert(source[_index] == '.');
+      _tokenList.add(Token(
+        type: TokenType.dot,
+        line: _line,
+        char: _char,
+      ));
+      _index += 1;
+      // Since this pattern will start with a `'.'`, the first element will
+      // be empty.
+      final List<String> tail = match.group(2)!.split('.').sublist(1);
+      for (int i = 0; i < tail.length; i += 1) {
+        final String name = tail[i];
+        assert(kIdentifierPattern.hasMatch(name));
+        _tokenList.add(StringToken(
+          type: TokenType.identifier,
+          value: name,
+          line: _line,
+          char: _char,
+        ));
+        _index += name.length;
+      }
+      return true;
     }
     match = kIdentifierPattern.matchAsPrefix(rest);
     if (match != null) {
       final String stringMatch = match.group(0)!;
-      _tokenList.add(
-        StringToken(
-          type: TokenType.identifier,
-          value: stringMatch,
-          line: _line,
-          char: _char,
-        ),
-      );
+      _tokenList.add(StringToken(
+        type: TokenType.identifier,
+        value: stringMatch,
+        line: _line,
+        char: _char,
+      ));
       _index += stringMatch.length;
       return true;
     }
     return false;
   }
 
-  static final RegExp kTypePattern = RegExp(r'[A-Z][a-zA-Z0-9_]*');
+  static final RegExp kTypePattern = RegExp(r'[A-Z]\w*');
 
   bool _scanTypeName() {
     // TODO this can be faster

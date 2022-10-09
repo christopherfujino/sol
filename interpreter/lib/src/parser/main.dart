@@ -373,7 +373,7 @@ class Parser {
     return _primary();
   }
 
-  /// NUMBER | STRING | "true" | "false" | "(" expression ")" ;
+  /// NUMBER | STRING | "true" | "false" | "(" expression ")" | IDENTIFIER;
   Expr _primary() {
     if (_currentToken!.type == TokenType.stringLiteral) {
       return _stringLiteral();
@@ -434,6 +434,14 @@ class Parser {
 
     // This should be last
     if (_currentToken!.type == TokenType.identifier) {
+
+      // check first for field access
+      if (_tokenLookahead(const <TokenType>[
+        TokenType.identifier,
+        TokenType.dot,
+      ])) {
+        return _fieldAccessExpr();
+      }
       return _identifierExpr();
     }
 
@@ -446,6 +454,22 @@ class Parser {
   IdentifierRef _identifierExpr() {
     final StringToken token = _consume(TokenType.identifier) as StringToken;
     return IdentifierRef(token.value);
+  }
+
+  /// A field access.
+  FieldAccessExpr _fieldAccessExpr() {
+    final List<IdentifierRef> identifiers = <IdentifierRef>[];
+    while (_tokenLookahead(const <TokenType>[
+      TokenType.identifier,
+      TokenType.dot,
+    ])) {
+      identifiers.add(_identifierExpr());
+      _consume(TokenType.dot);
+    }
+    // there should be one last trailing identifier
+    identifiers.add(_identifierExpr());
+
+    return FieldAccessExpr(identifiers);
   }
 
   /// A type reference.

@@ -10,6 +10,7 @@ Future<void> main(List<String> args) async {
   );
 
   runner.addCommand(RunCommand());
+  runner.addCommand(ScanCommand());
   runner.addCommand(PrintASTCommand());
   await runner.run(args);
 }
