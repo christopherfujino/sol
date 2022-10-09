@@ -1,18 +1,26 @@
 import 'package:meta/meta.dart';
 
+import '../scanner.dart' show Token;
 import 'expressions.dart';
 import 'visitors.dart' show ParseTreeVisitor;
 
 @immutable
 abstract class Stmt {
-  const Stmt();
+  const Stmt(this.token);
+
+  final Token token;
 
   T accept<T>(ParseTreeVisitor<T> visitor);
 }
 
 /// Declaration of a variable (or constant).
 class VarDeclStmt extends Stmt {
-  const VarDeclStmt(this.name, this.expr, {this.isConstant = false});
+  const VarDeclStmt(
+    this.name,
+    this.expr,
+    super.token, {
+    this.isConstant = false,
+  });
 
   final String name;
   final Expr expr;
@@ -26,7 +34,7 @@ class VarDeclStmt extends Stmt {
 ///
 /// It will be a compilation error if [name] resolves to a constant.
 class AssignStmt extends Stmt {
-  const AssignStmt(this.name, this.expr);
+  const AssignStmt(this.name, this.expr, super.token);
 
   final String name;
   final Expr expr;
@@ -37,33 +45,25 @@ class AssignStmt extends Stmt {
 
 /// Interface for [ReturnStmt], etc.
 abstract class BlockExitStmt extends Stmt {
-  const BlockExitStmt();
+  const BlockExitStmt(super.token);
 }
 
 class BreakStmt extends BlockExitStmt {
-  factory BreakStmt() => instance;
-
-  const BreakStmt._();
-
-  static const BreakStmt instance = BreakStmt._();
+  const BreakStmt(super.token);
 
   @override
   T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitBreakStmt(this);
 }
 
 class ContinueStmt extends BlockExitStmt {
-  factory ContinueStmt() => instance;
-
-  const ContinueStmt._();
-
-  static const ContinueStmt instance = ContinueStmt._();
+  const ContinueStmt(super.token);
 
   @override
   T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitContinueStmt(this);
 }
 
 class ReturnStmt extends BlockExitStmt {
-  const ReturnStmt(this.returnValue);
+  const ReturnStmt(this.returnValue, super.token);
 
   final Expr? returnValue;
 
@@ -72,7 +72,7 @@ class ReturnStmt extends BlockExitStmt {
 }
 
 class BareStmt extends Stmt {
-  const BareStmt({required this.expression});
+  const BareStmt(super.token, {required this.expression});
 
   final Expr expression;
 
@@ -88,7 +88,8 @@ class BareStmt extends Stmt {
 /// Wraps a single opening if statement (with block), zero or more else if
 /// statements, and an optional final else statement.
 class ConditionalChainStmt extends Stmt {
-  const ConditionalChainStmt({
+  const ConditionalChainStmt(
+    super.token, {
     required this.ifStmt,
     this.elseIfStmts,
     this.elseStmt,
@@ -104,7 +105,7 @@ class ConditionalChainStmt extends Stmt {
 }
 
 class WhileStmt extends Stmt {
-  const WhileStmt(this.condition, this.block);
+  const WhileStmt(this.condition, this.block, super.token);
 
   final Expr condition;
   final Iterable<Stmt> block;
@@ -114,7 +115,13 @@ class WhileStmt extends Stmt {
 }
 
 class ForStmt extends Stmt {
-  const ForStmt(this.index, this.element, this.iterable, this.block);
+  const ForStmt(
+    this.index,
+    this.element,
+    this.iterable,
+    this.block,
+    super.token,
+  );
 
   final IdentifierRef index;
   final IdentifierRef element;
@@ -126,7 +133,7 @@ class ForStmt extends Stmt {
 }
 
 class IfStmt extends Stmt {
-  const IfStmt(this.expr, this.block);
+  const IfStmt(this.expr, this.block, super.token);
 
   final Expr expr;
   final Iterable<Stmt> block;
@@ -136,14 +143,14 @@ class IfStmt extends Stmt {
 }
 
 class ElseIfStmt extends IfStmt {
-  const ElseIfStmt(super.expr, super.block);
+  const ElseIfStmt(super.expr, super.block, super.token);
 
   @override
   T accept<T>(ParseTreeVisitor<T> visitor) => visitor.visitElseIfStmt(this);
 }
 
 class ElseStmt extends Stmt {
-  const ElseStmt(this.block);
+  const ElseStmt(this.block, super.token);
 
   final Iterable<Stmt> block;
 

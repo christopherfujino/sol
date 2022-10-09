@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import '../scanner.dart';
-import '../source_code.dart';
 
 import 'declarations.dart';
 import 'expressions.dart';
@@ -204,8 +203,8 @@ class Parser {
   // bare_statement ::= expression, ";"
   BareStmt _exprStmt() {
     final Expr expression = _expr();
-    _consume(TokenType.semicolon);
-    return BareStmt(expression: expression);
+    final Token token = _consume(TokenType.semicolon);
+    return BareStmt(token, expression: expression);
   }
 
   ConditionalChainStmt _conditionalChainStmt() {
@@ -214,17 +213,17 @@ class Parser {
     ElseStmt? elseStmt;
 
     // If, required
-    _consume(TokenType.ifKeyword);
+    final Token ifToken = _consume(TokenType.ifKeyword);
     final Expr ifExpr = _expr();
     final Iterable<Stmt> ifBlock = _block();
-    ifStmt = IfStmt(ifExpr, ifBlock);
+    ifStmt = IfStmt(ifExpr, ifBlock, ifToken);
 
     // Else if, zero or more times
     while (_tokenLookahead(<TokenType>[
       TokenType.elseKeyword,
       TokenType.ifKeyword,
     ])) {
-      _consume(TokenType.elseKeyword);
+      final Token token = _consume(TokenType.elseKeyword);
       _consume(TokenType.ifKeyword);
 
       elseIfStmts ??= <ElseIfStmt>[];
@@ -232,16 +231,17 @@ class Parser {
       final Expr elseIfExpr = _expr();
       final Iterable<Stmt> elseIfBlock = _block();
 
-      elseIfStmts.add(ElseIfStmt(elseIfExpr, elseIfBlock));
+      elseIfStmts.add(ElseIfStmt(elseIfExpr, elseIfBlock, token));
     }
 
     // Else, zero or one time, must be last
     if (_currentToken!.type == TokenType.elseKeyword) {
-      _consume(TokenType.elseKeyword);
-      elseStmt = ElseStmt(_block());
+      final Token token = _consume(TokenType.elseKeyword);
+      elseStmt = ElseStmt(_block(), token);
     }
 
     return ConditionalChainStmt(
+      ifToken,
       ifStmt: ifStmt,
       elseIfStmts: elseIfStmts,
       elseStmt: elseStmt,
@@ -249,48 +249,48 @@ class Parser {
   }
 
   WhileStmt _whileStmt() {
-    _consume(TokenType.whileKeyword);
+    final Token token = _consume(TokenType.whileKeyword);
     final Expr condition = _expr();
     final Iterable<Stmt> block = _block();
-    return WhileStmt(condition, block);
+    return WhileStmt(condition, block, token);
   }
 
   ForStmt _forStmt() {
-    _consume(TokenType.forKeyword);
+    final Token token = _consume(TokenType.forKeyword);
     final IdentifierRef index = _identifierExpr();
     _consume(TokenType.comma);
     final IdentifierRef element = _identifierExpr();
     _consume(TokenType.inKeyword);
     final Expr iterable = _expr();
     final Iterable<Stmt> block = _block();
-    return ForStmt(index, element, iterable, block);
+    return ForStmt(index, element, iterable, block, token);
   }
 
   BreakStmt _breakStmt() {
-    _consume(TokenType.breakKeyword);
+    final Token token = _consume(TokenType.breakKeyword);
     _consume(TokenType.semicolon);
-    return BreakStmt();
+    return BreakStmt(token);
   }
 
   ContinueStmt _continueStmt() {
-    _consume(TokenType.continueKeyword);
+    final Token token = _consume(TokenType.continueKeyword);
     _consume(TokenType.semicolon);
-    return ContinueStmt();
+    return ContinueStmt(token);
   }
 
   ReturnStmt _returnStmt() {
-    _consume(TokenType.returnKeyword);
+    final Token token = _consume(TokenType.returnKeyword);
     if (_currentToken!.type == TokenType.semicolon) {
       _consume(TokenType.semicolon);
-      return const ReturnStmt(null);
+      return ReturnStmt(null, token);
     }
     final Expr returnValue = _expr();
     _consume(TokenType.semicolon);
-    return ReturnStmt(returnValue);
+    return ReturnStmt(returnValue, token);
   }
 
   VarDeclStmt _varDeclStmt() {
-    _consume(TokenType.variable);
+    final Token token = _consume(TokenType.variable);
     final StringToken name = _consume(TokenType.identifier) as StringToken;
     _consume(TokenType.assignment);
     final Expr expr = _expr();
@@ -298,6 +298,7 @@ class Parser {
     return VarDeclStmt(
       name.value,
       expr,
+      token,
     );
   }
 
@@ -309,6 +310,7 @@ class Parser {
     return AssignStmt(
       name.value,
       expr,
+      name,
     );
   }
 
