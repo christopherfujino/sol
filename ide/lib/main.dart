@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sol/sol.dart' as sol;
 
 void main() {
   runApp(const MyApp());

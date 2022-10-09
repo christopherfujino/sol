@@ -21,6 +21,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  sol:
+    path: ../interpreter
 
 dev_dependencies:
   flutter_test:
