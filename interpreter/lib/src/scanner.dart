@@ -1,4 +1,5 @@
 import 'source_code.dart';
+export 'source_code.dart';
 
 enum TokenType {
   // keywords

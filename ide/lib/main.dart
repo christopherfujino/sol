@@ -1,3 +1,5 @@
+import 'dart:io' as io; // TODO get rid
+
 import 'package:flutter/material.dart';
 import 'package:sol/sol.dart' as sol;
 
@@ -42,9 +44,52 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final TextEditingController _controller = TextEditingController(text: '''
 function main() {
-  # TODO write code
+  print("Hello, world!");
 }
 ''');
+  String output = '';
+  bool isInterpreting = false;
+
+  Future<void> interpret() async {
+    if (isInterpreting) {
+      return;
+    }
+    setState(() {
+      isInterpreting = true;
+      output = '';
+    });
+    final sol.SourceCode sourceCode = sol.SourceCode(_controller.text);
+    final List<sol.Token> tokenList =
+        await sol.Scanner.fromSourceCode(sourceCode).scan();
+    final sol.ParseTree parseTree;
+    try {
+      parseTree = await sol.Parser(
+        tokenList: tokenList,
+        entrySourceCode: sourceCode,
+      ).parse();
+    } on sol.ParseError catch (err) {
+      io.stderr.writeln(err);
+      setState(() => isInterpreting = false);
+      return;
+    }
+    try {
+      await sol.Interpreter(
+        parseTree: parseTree,
+        workingDir: io.Directory('.'), // TODO get rid of
+        emitter: (sol.EmitMessage msg) async {
+          setState(() => output += '$msg\n');
+          return null;
+        },
+      ).interpret();
+    } on sol.RuntimeError catch (err) {
+      io.stderr.writeln(err);
+      setState(() => isInterpreting = false);
+      return;
+    }
+
+    setState(() => isInterpreting = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     // This method is rerun every time setState is called, for instance as done
@@ -79,9 +124,20 @@ function main() {
           // horizontal).
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            TextFormField(
-              controller: _controller,
-              decoration: const InputDecoration(border: OutlineInputBorder()),
+            Row(children: <Widget>[
+              Flexible(
+                  child: TextFormField(
+                controller: _controller,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+                maxLines: 40,
+                minLines: 1,
+                style: const TextStyle(fontFamily: 'monospace'),
+              )),
+              Flexible(child: Text(output)),
+            ]),
+            ElevatedButton(
+              onPressed: isInterpreting ? null : interpret,
+              child: const Text('Run'),
             ),
           ],
         ),
