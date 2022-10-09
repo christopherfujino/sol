@@ -2,6 +2,7 @@ import 'dart:io' as io; // TODO get rid
 
 import 'package:flutter/material.dart';
 import 'package:sol/sol.dart' as sol;
+import 'package:code_text_field/code_text_field.dart';
 
 void main() {
   runApp(const MyApp());
@@ -42,11 +43,13 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final TextEditingController _controller = TextEditingController(text: '''
-function main() {
-  print("Hello, world!");
-}
-''');
+//  final TextEditingController _controller = TextEditingController(text: '''
+//function main() {
+//  print("Hello, world!");
+//}
+//''');
+  final CodeController _controller = CodeController(text: 'Hello world', webSpaceFix: false);
+
   String output = '';
   bool isInterpreting = false;
 
@@ -75,15 +78,14 @@ function main() {
     }
     try {
       await sol.Interpreter(
-        parseTree: parseTree,
-        workingDir: io.Directory('.'), // TODO get rid of
-        emitter: (sol.EmitMessage msg) async {
-          return null;
-        },
-        stdoutOverride: (String msg) {
-          setState(() => output += '$msg\n');
-        }
-      ).interpret();
+          parseTree: parseTree,
+          workingDir: io.Directory('.'), // TODO get rid of
+          emitter: (sol.EmitMessage msg) async {
+            return null;
+          },
+          stdoutOverride: (String msg) {
+            setState(() => output += '$msg\n');
+          }).interpret();
     } on sol.RuntimeError catch (err) {
       debugPrint(err.toString());
       //io.stderr.writeln(err);
@@ -112,33 +114,23 @@ function main() {
         // Center is a layout widget. It takes a single child and positions it
         // in the middle of the parent.
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Row(children: <Widget>[
+            Expanded(
+                child: Row(children: <Widget>[
               Flexible(
-                  child: TextFormField(
-                controller: _controller,
-                decoration: const InputDecoration(border: OutlineInputBorder()),
-                maxLines: 40,
-                minLines: 1,
-                style: const TextStyle(fontFamily: 'monospace'),
+                  child: CodeField(
+                      controller: _controller,
+                      textStyle: const TextStyle(fontFamily: 'SourceCode'),
+//                  child: TextFormField(
+//                controller: _controller,
+//                decoration: const InputDecoration(border: OutlineInputBorder()),
+//                maxLines: 40,
+//                minLines: 1,
+//                style: const TextStyle(fontFamily: 'monospace'),
               )),
               Flexible(child: Text(output)),
-            ]),
+            ])),
             ElevatedButton(
               onPressed: isInterpreting ? null : interpret,
               child: const Text('Run'),
