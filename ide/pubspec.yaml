@@ -28,6 +28,7 @@ dependencies:
       url: git@github.com:BertrandBev/code_field.git
       # https://github.com/BertrandBev/code_field/commit/66d4e56f14bc0073cd967149a929c6b670ffc74c
       ref: 66d4e56f14bc0073cd967149a929c6b670ffc74c
+  google_fonts: 3.0.1
 
 dev_dependencies:
   flutter_test:

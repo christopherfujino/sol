@@ -3,6 +3,7 @@ import 'dart:io' as io; // TODO get rid
 import 'package:flutter/material.dart';
 import 'package:sol/sol.dart' as sol;
 import 'package:code_text_field/code_text_field.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() {
   runApp(const MyApp());
@@ -17,7 +18,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        brightness: Brightness.dark,
       ),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
@@ -43,12 +44,14 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-//  final TextEditingController _controller = TextEditingController(text: '''
-//function main() {
-//  print("Hello, world!");
-//}
-//''');
-  final CodeController _controller = CodeController(text: 'Hello world', webSpaceFix: false);
+  final CodeController _controller = CodeController(
+    text: '''
+function main() {
+  print("Hello, world!");
+}
+''',
+    webSpaceFix: false,
+  );
 
   String output = '';
   bool isInterpreting = false;
@@ -120,16 +123,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: Row(children: <Widget>[
               Flexible(
                   child: CodeField(
-                      controller: _controller,
-                      textStyle: const TextStyle(fontFamily: 'SourceCode'),
-//                  child: TextFormField(
-//                controller: _controller,
-//                decoration: const InputDecoration(border: OutlineInputBorder()),
-//                maxLines: 40,
-//                minLines: 1,
-//                style: const TextStyle(fontFamily: 'monospace'),
+                controller: _controller,
+                textStyle: GoogleFonts.robotoMono(),
               )),
-              Flexible(child: Text(output)),
+              Flexible(child: Text(output, style: GoogleFonts.robotoMono())),
             ])),
             ElevatedButton(
               onPressed: isInterpreting ? null : interpret,
