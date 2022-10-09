@@ -248,7 +248,7 @@ class Interpreter {
     }
 
     if (expr is SubExpr) {
-      return _subExpr<T>(expr, ctx);
+      return _subExpr<T>(expr);
     }
 
     if (expr is FieldAccessExpr) {
@@ -301,9 +301,9 @@ class Interpreter {
     );
   }
 
-  Future<T> _subExpr<T extends Val>(SubExpr expr, Context ctx) async {
+  Future<T> _subExpr<T extends Val>(SubExpr expr) async {
     // TODO implement for maps
-    final ListVal list = ctx.getVal<ListVal>(expr.target);
+    final ListVal list = await _expr<ListVal>(expr.target);
     final NumVal sub = await _expr<NumVal>(expr.subscript);
     if (list.val.length - 1 < sub.val) {
       throwRuntimeError(
@@ -430,6 +430,10 @@ class Interpreter {
         return ValType.number;
       default:
         // TODO implement user-defined types
+        final StructureDecl? structDecl = _structureBindings[ref.name];
+        if (structDecl != null) {
+          return StructureValType(ref.name);
+        }
         throw UnimplementedError('Unknown TypeRef $ref');
     }
   }
@@ -440,8 +444,8 @@ class Interpreter {
     // TODO lift check to compiler
     if (leftVal.type != rightVal.type) {
       throwRuntimeError(
-        'The left and right hand sides of a ${expr.operatorToken} expression '
-        'do not match!',
+        'The left ($leftVal) and right hand sides ($rightVal) of '
+        'a ${expr.operatorToken} expression do not match!',
       );
     }
     switch (expr.operatorToken.type) {
@@ -575,20 +579,28 @@ class Interpreter {
   }
 
   Future<T> _fieldAccessExpr<T extends Val>(FieldAccessExpr expr) async {
-    Val currentVal = ctx.getVal<StructureVal>(expr.identifierChain[0].name);
-    for (int i = 1; i < expr.identifierChain.length; i += 1) {
-      final IdentifierRef currentIdentifier = expr.identifierChain[i];
-      // TODO support methods
-      final Val? fieldVal =
-          (currentVal as StructureVal).fields[currentIdentifier.name];
-      if (fieldVal == null) {
-        throwRuntimeError(
-          'Failed accessing $currentIdentifier from $currentVal',
-        );
-      }
-      currentVal = fieldVal;
+    final StructureVal currentVal = await _expr<StructureVal>(expr.parent);
+    final Val? fieldVal = currentVal.fields[expr.fieldName.name];
+    if (fieldVal == null) {
+      throwRuntimeError(
+        'Failed accessing "${expr.fieldName.name}" from $currentVal with '
+        'fields ${currentVal.fields.keys}',
+      );
     }
-    return currentVal as T;
+    if (fieldVal is! T) {
+      throwRuntimeError(
+        'Expected field ${expr.fieldName} to be of type $T, but it was of '
+        'type ${fieldVal.runtimeType}',
+      );
+    }
+    return fieldVal;
+
+    //for (int i = 1; i < expr.identifierChain.length; i += 1) {
+    //  final IdentifierRef currentIdentifier = expr.identifierChain[i];
+    //  // TODO support methods
+    //  final Val? fieldVal =
+    //      (currentVal as StructureVal).fields[currentIdentifier.name];
+    //}
   }
 
   Future<int> runProcess({

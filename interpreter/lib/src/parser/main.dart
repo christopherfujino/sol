@@ -362,7 +362,9 @@ class Parser {
     return left;
   }
 
-  /// ( "!" | "-" ) unary | primary ;
+  /// Unary
+  ///
+  /// ( "!" | "-" ) unary | call ;
   Expr _unary() {
     if (_currentToken!.type == TokenType.bang ||
         _currentToken!.type == TokenType.minus) {
@@ -370,7 +372,28 @@ class Parser {
       final Expr unary = _unary();
       return UnaryExpr(operatorToken, unary);
     }
-    return _primary();
+    return _call();
+  }
+
+  /// Function call or field access call.
+  ///
+  /// primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
+  Expr _call() {
+    Expr expr = _primary();
+    // TODO Should we only match open paren if [expr] is IdentifierRef?
+    while (true) {
+      if (_currentToken!.type == TokenType.openParen) {
+        expr = _callExpr(expr as IdentifierRef); // should this be Expr?
+      } else if (_currentToken!.type == TokenType.dot) {
+        _consume(TokenType.dot);
+        expr = FieldAccessExpr(expr, _identifierExpr());
+      } else if (_currentToken!.type == TokenType.openSquareBracket) {
+        expr = _subExpr(expr);
+      } else {
+        break;
+      }
+    }
+    return expr;
   }
 
   /// NUMBER | STRING | "true" | "false" | "(" expression ")" | IDENTIFIER;
@@ -378,20 +401,6 @@ class Parser {
     if (_currentToken!.type == TokenType.stringLiteral) {
       return _stringLiteral();
     }
-    if (_tokenLookahead(const <TokenType>[
-      TokenType.identifier,
-      TokenType.openParen,
-    ])) {
-      return _callExpr();
-    }
-
-    if (_tokenLookahead(const <TokenType>[
-      TokenType.identifier,
-      TokenType.openSquareBracket,
-    ])) {
-      return _subExpr();
-    }
-
     if (_currentToken!.type == TokenType.booleanLiteral) {
       return _boolLiteral();
     }
@@ -434,14 +443,13 @@ class Parser {
 
     // This should be last
     if (_currentToken!.type == TokenType.identifier) {
-
-      // check first for field access
-      if (_tokenLookahead(const <TokenType>[
-        TokenType.identifier,
-        TokenType.dot,
-      ])) {
-        return _fieldAccessExpr();
-      }
+      //// check first for field access
+      //if (_tokenLookahead(const <TokenType>[
+      //  TokenType.identifier,
+      //  TokenType.dot,
+      //])) {
+      //  return _fieldAccessExpr();
+      //}
       return _identifierExpr();
     }
 
@@ -457,20 +465,20 @@ class Parser {
   }
 
   /// A field access.
-  FieldAccessExpr _fieldAccessExpr() {
-    final List<IdentifierRef> identifiers = <IdentifierRef>[];
-    while (_tokenLookahead(const <TokenType>[
-      TokenType.identifier,
-      TokenType.dot,
-    ])) {
-      identifiers.add(_identifierExpr());
-      _consume(TokenType.dot);
-    }
-    // there should be one last trailing identifier
-    identifiers.add(_identifierExpr());
+  //FieldAccessExpr _fieldAccessExpr(Expr parent) {
+  //  final List<Expr> expressions = <Expr>[parent];
+  //  while (_tokenLookahead(const <TokenType>[
+  //    TokenType.identifier,
+  //    TokenType.dot,
+  //  ])) {
+  //    identifiers.add(_identifierExpr());
+  //    _consume(TokenType.dot);
+  //  }
+  //  // there should be one last trailing identifier
+  //  identifiers.add(_identifierExpr());
 
-    return FieldAccessExpr(identifiers);
-  }
+  //  return FieldAccessExpr(identifiers);
+  //}
 
   /// A type reference.
   ///
@@ -507,7 +515,7 @@ class Parser {
     final Map<String, Expr> fields = <String, Expr>{};
     final StringToken typeName = _consume<StringToken>(TokenType.type);
     _consume(TokenType.openCurlyBracket);
-    while(_currentToken!.type != TokenType.closeCurlyBracket) {
+    while (_currentToken!.type != TokenType.closeCurlyBracket) {
       final NameExprPair pair = _nameExprPair();
       if (fields.containsKey(pair.name.name)) {
         _throwParseError(
@@ -528,7 +536,6 @@ class Parser {
 
     return StructureLiteral(typeName.value, fields);
   }
-
 
   ListLiteral _listLiteral() {
     final StringToken token = _consume<StringToken>(TokenType.type);
@@ -553,8 +560,7 @@ class Parser {
   }
 
   // call_expression ::= identifier, "(", arg_list?, ")"
-  CallExpr _callExpr() {
-    final StringToken name = _consume(TokenType.identifier) as StringToken;
+  CallExpr _callExpr(IdentifierRef name) {
     List<Expr>? argList;
     _consume(TokenType.openParen);
     if (_currentToken?.type != TokenType.closeParen) {
@@ -562,14 +568,13 @@ class Parser {
     }
     _consume(TokenType.closeParen);
     return CallExpr(
-      name.value,
+      name.name,
       argList ?? const <Expr>[],
     );
   }
 
   // sub_expression ::= identifier, "[", String | Number, "]"
-  SubExpr _subExpr() {
-    final StringToken name = _consume(TokenType.identifier) as StringToken;
+  SubExpr _subExpr(Expr parent) {
     _consume(TokenType.openSquareBracket);
 
     // TODO check this is a string/num expression during compilation
@@ -577,7 +582,7 @@ class Parser {
 
     _consume(TokenType.closeSquareBracket);
     return SubExpr(
-      name.value,
+      parent,
       expr,
     );
   }

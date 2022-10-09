@@ -77,7 +77,7 @@ class SubExpr extends Expr {
   const SubExpr(this.target, this.subscript);
 
   /// List or Map that this expression is accessing.
-  final String target;
+  final Expr target;
 
   final Expr subscript;
 
@@ -230,11 +230,11 @@ class StructureLiteral extends Expr {
 }
 
 class FieldAccessExpr extends Expr {
-  const FieldAccessExpr(this.identifierChain)
-      : assert(identifierChain.length > 1);
+  const FieldAccessExpr(this.parent, this.fieldName);
 
-  // Use [IdentifierRef] because it will eventually wrap a Token for debugging.
-  final List<IdentifierRef> identifierChain;
+  final Expr parent;
+  final IdentifierRef fieldName;
+
   @override
   T accept<T>(ParseTreeVisitor<T> visitor) =>
       visitor.visitFieldAccessExpr(this);

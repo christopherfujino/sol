@@ -209,6 +209,7 @@ Future<void> main() async {
       interpreter.stdoutBuffer.toString().trim().split('\n'),
       orderedEquals(<String>[
         'Hello Bob and Alice!',
+        'Bob is enrolled in Calculus',
       ]),
     );
 

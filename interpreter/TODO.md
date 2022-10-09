@@ -2,13 +2,11 @@
 
 ## Features Next
 
-- [ ] lists
 - [ ] constants
 - [ ] for loops
 - [ ] logical keywords/operators
 - [ ] Hash maps
 - [ ] Errors
-- [ ] Structures!
 - [ ] += (et al) operators
 
 ## Bugs Next
@@ -32,3 +30,5 @@
 - [x] Validate each function can only return values that match the function's
 - [x] Parens expressions
 - [x] while loops
+- [x] lists
+- [x] Structures!

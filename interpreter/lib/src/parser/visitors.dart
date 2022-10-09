@@ -261,7 +261,18 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
 
   @override
   Iterable<String> visitStructureLiteral(StructureLiteral that) sync* {
-    throw UnimplementedError('TODO');
+    yield '(StructureLiteral';
+    yield* _indentBlock(() sync* {
+      yield '(name: ${that.name})';
+      yield '(fields:';
+      yield* _indentBlock(() sync* {
+        for (final MapEntry<String, Expr> entry in that.fields.entries) {
+          yield '(${entry.key}: ${entry.value})';
+        }
+      });
+      yield ')';
+    });
+    yield ')';
   }
 
   // Statements
@@ -369,11 +380,24 @@ class ParseTreePrinter implements ParseTreeVisitor<Iterable<String>> {
 
   @override
   Iterable<String> visitStructureDecl(StructureDecl that) sync* {
-    throw UnimplementedError('TODO');
+    yield 'TODO StructureDecl';
   }
 
   @override
   Iterable<String> visitFieldAccessExpr(FieldAccessExpr that) sync* {
-    throw UnimplementedError('TODO');
+    yield '(FieldAccessExpr';
+    yield* _indentBlock(() sync* {
+      yield '(parent:';
+      yield* _indentBlock(() sync* {
+        yield* that.parent.accept(this);
+      });
+      yield ')';
+      yield '(fieldName:';
+      yield* _indentBlock(() sync* {
+        yield* that.fieldName.accept(this);
+      });
+      yield ')';
+    });
+    yield ')';
   }
 }

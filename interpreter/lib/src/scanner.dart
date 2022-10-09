@@ -499,60 +499,25 @@ Last scanned token: ${_tokenList.last}
   }
 
   static final RegExp kIdentifierPattern = RegExp(r'[a-z]\w*');
-  static final RegExp kFieldAccessPattern = RegExp(
-      '(${kIdentifierPattern.pattern})((?:\\.${kIdentifierPattern.pattern})+)');
 
   bool _scanIdentifier() {
     // TODO this can be faster
     final String rest = source.substring(_index);
 
     // first check field access, which is longer, then for a single identifier
-    Match? match = kFieldAccessPattern.matchAsPrefix(rest);
-    if (match != null) {
-      final String head = match.group(1)!;
-      _tokenList.add(StringToken(
-        type: TokenType.identifier,
-        value: head,
-        line: _line,
-        char: _char,
-      ));
-      _index += head.length;
-      assert(source[_index] == '.');
-      _tokenList.add(Token(
-        type: TokenType.dot,
-        line: _line,
-        char: _char,
-      ));
-      _index += 1;
-      // Since this pattern will start with a `'.'`, the first element will
-      // be empty.
-      final List<String> tail = match.group(2)!.split('.').sublist(1);
-      for (int i = 0; i < tail.length; i += 1) {
-        final String name = tail[i];
-        assert(kIdentifierPattern.hasMatch(name));
-        _tokenList.add(StringToken(
-          type: TokenType.identifier,
-          value: name,
-          line: _line,
-          char: _char,
-        ));
-        _index += name.length;
-      }
-      return true;
+    final Match? match = kIdentifierPattern.matchAsPrefix(rest);
+    if (match == null) {
+      return false;
     }
-    match = kIdentifierPattern.matchAsPrefix(rest);
-    if (match != null) {
-      final String stringMatch = match.group(0)!;
-      _tokenList.add(StringToken(
-        type: TokenType.identifier,
-        value: stringMatch,
-        line: _line,
-        char: _char,
-      ));
-      _index += stringMatch.length;
-      return true;
-    }
-    return false;
+    final String stringMatch = match.group(0)!;
+    _tokenList.add(StringToken(
+      type: TokenType.identifier,
+      value: stringMatch,
+      line: _line,
+      char: _char,
+    ));
+    _index += stringMatch.length;
+    return true;
   }
 
   static final RegExp kTypePattern = RegExp(r'[A-Z]\w*');
@@ -710,6 +675,16 @@ Last scanned token: ${_tokenList.last}
           _index += 1;
         }
         // does the parser need a comment token?
+        return true;
+      case '.':
+        _tokenList.add(
+          Token(
+            type: TokenType.dot,
+            line: _line,
+            char: _char,
+          ),
+        );
+        _index += 1;
         return true;
     }
 
