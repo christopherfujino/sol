@@ -3,7 +3,6 @@
 ## Features Next
 
 - [ ] constants
-- [ ] for loops
 - [ ] logical keywords/operators
 - [ ] Hash maps
 - [ ] Errors
@@ -32,3 +31,4 @@
 - [x] while loops
 - [x] lists
 - [x] Structures!
+- [x] for loops
