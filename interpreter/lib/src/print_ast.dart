@@ -5,7 +5,6 @@ import 'package:args/command_runner.dart';
 
 import 'parser/parser.dart';
 import 'scanner.dart';
-import 'source_code.dart';
 
 class PrintASTCommand extends Command<void> {
   @override

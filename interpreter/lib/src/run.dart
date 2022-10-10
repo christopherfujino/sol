@@ -7,7 +7,6 @@ import 'emitter.dart';
 import 'interpreter/interpreter.dart';
 import 'parser/parser.dart';
 import 'scanner.dart';
-import 'source_code.dart';
 
 class RunCommand extends Command<void> {
   RunCommand() {

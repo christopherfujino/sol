@@ -165,7 +165,10 @@ class Interpreter {
       throwRuntimeError('foo ${statement.ifStmt.expr}\n$err');
     }
     if (ifCondition.val) {
-      final BlockExit? exit = await _block(statement.ifStmt.block, Environment());
+      final BlockExit? exit = await _block(
+        statement.ifStmt.block,
+        Environment(),
+      );
       if (exit != null) {
         return exit;
       }
@@ -437,7 +440,8 @@ class Interpreter {
         if (stmt is BlockExitStmt) {
           switch (stmt.runtimeType) {
             case ContinueStmt:
-              // Don't actually execute a [ContinueStmt] as there is nothing to do
+              // Don't actually execute a [ContinueStmt] as there is no work to
+              // do
               continue;
             case BreakStmt:
               // Don't actually execute a [BreakStmt] as there is nothing to do

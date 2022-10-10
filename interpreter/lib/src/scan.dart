@@ -4,7 +4,6 @@ import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 
 import 'scanner.dart';
-import 'source_code.dart';
 
 class ScanCommand extends Command<void>{
   @override
@@ -32,6 +31,6 @@ class ScanCommand extends Command<void>{
 
     final List<Token> tokenList = await Scanner.fromSourceCode(source).scan();
 
-    tokenList.forEach(print);
+    tokenList.forEach(io.stdout.writeln);
   }
 }
