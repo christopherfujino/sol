@@ -15,7 +15,7 @@ class CliInterpreter extends Interpreter {
   factory CliInterpreter({
     required ParseTree parseTree,
     required io.Directory workingDir,
-    required Emitter emitter,
+    Emitter? emitter,
   }) {
     return CliInterpreter.internal(
       parseTree: parseTree,
@@ -48,7 +48,7 @@ class CliInterpreter extends Interpreter {
 abstract class Interpreter {
   Interpreter({
     required this.ctx,
-    required this.emitter,
+    this.emitter,
     required this.parseTree,
     required this.externalFunctions,
   });
@@ -56,7 +56,7 @@ abstract class Interpreter {
   final ParseTree parseTree;
   final Context ctx;
 
-  final Emitter emitter;
+  final Emitter? emitter;
 
   Future<void> emit(String msg) async {
     if (emitter == null) {

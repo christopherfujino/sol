@@ -74,9 +74,7 @@ function main() {
       await sol.Interpreter(
           parseTree: parseTree,
           workingDir: io.Directory('.'), // TODO get rid of
-          emitter: (sol.EmitMessage msg) async {
-            return null;
-          },
+          emitter: null,
           stdoutOverride: (String msg) {
             setState(() => output += '$msg\n');
           }).interpret();
