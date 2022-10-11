@@ -8,13 +8,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'interpreter.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const App());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class App extends StatelessWidget {
+  const App({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -46,7 +45,7 @@ function main() {
     webSpaceFix: false,
   );
 
-  String output = '';
+  final List<String> outputLines = <String>[];
   bool isInterpreting = false;
 
   Future<void> interpret() async {
@@ -55,7 +54,7 @@ function main() {
     }
     setState(() {
       isInterpreting = true;
-      output = '';
+      outputLines.clear();
     });
     final sol.SourceCode sourceCode = sol.SourceCode(_controller.text);
     final List<sol.Token> tokenList =
@@ -67,20 +66,21 @@ function main() {
         entrySourceCode: sourceCode,
       ).parse();
     } on sol.ParseError catch (err) {
-      debugPrint(err.toString());
-      //io.stderr.writeln(err);
+      outputLines.add(err.toString());
       setState(() => isInterpreting = false);
       return;
     }
     try {
       await IDEInterpreter(
-          parseTree: parseTree,
-          emitter: null,
-          stdoutCb: (String msg) {
-            setState(() => output += '$msg\n');
-          },
-          stderrCb: (String msg) {},
-          ).interpret();
+        parseTree: parseTree,
+        emitter: null,
+        stdoutCb: (String msg) {
+          setState(() => outputLines.add(msg));
+        },
+        stderrCb: (String msg) {
+          setState(() => outputLines.add('[error] $msg'));
+        },
+      ).interpret();
     } on sol.RuntimeError catch (err) {
       debugPrint(err.toString());
       //io.stderr.writeln(err);
@@ -118,7 +118,15 @@ function main() {
                 controller: _controller,
                 textStyle: GoogleFonts.robotoMono(),
               )),
-              Flexible(child: Text(output, style: GoogleFonts.robotoMono())),
+              Flexible(
+                child: ListView(
+                  children: outputLines
+                      .map<Text>((String line) =>
+                          Text(line, style: GoogleFonts.robotoMono()))
+                      .toList(),
+                ),
+              ),
+              //Flexible(child: Text(output, style: GoogleFonts.robotoMono())),
             ])),
             ElevatedButton(
               onPressed: isInterpreting ? null : interpret,
