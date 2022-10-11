@@ -66,8 +66,10 @@ function main() {
         entrySourceCode: sourceCode,
       ).parse();
     } on sol.ParseError catch (err) {
-      outputLines.add(err.toString());
-      setState(() => isInterpreting = false);
+      setState(() {
+        outputLines.add(err.toString());
+        isInterpreting = false;
+      });
       return;
     }
     try {
@@ -82,9 +84,10 @@ function main() {
         },
       ).interpret();
     } on sol.RuntimeError catch (err) {
-      debugPrint(err.toString());
-      //io.stderr.writeln(err);
-      setState(() => isInterpreting = false);
+      setState(() {
+        outputLines.add(err.toString());
+        isInterpreting = false;
+      });
       return;
     }
 
