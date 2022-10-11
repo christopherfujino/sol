@@ -11,38 +11,52 @@ import 'context.dart';
 import 'native_functions.dart';
 import 'vals.dart';
 
-class Interpreter {
-  factory Interpreter({
+class CliInterpreter extends Interpreter {
+  factory CliInterpreter({
     required ParseTree parseTree,
     required io.Directory workingDir,
     required Emitter emitter,
-    void Function(String)? stdoutOverride,
-    void Function(String)? stderrOverride,
   }) {
-    return Interpreter.internal(
+    return CliInterpreter.internal(
       parseTree: parseTree,
       ctx: Context(workingDir: workingDir),
       emitter: emitter,
-      stdoutOverride: stdoutOverride,
-      stderrOverride: stderrOverride,
     );
   }
 
   @visibleForTesting
-  Interpreter.internal({
-    required this.parseTree,
+  CliInterpreter.internal({
+    required super.parseTree,
+    required super.ctx,
+    super.emitter,
+  }) : super(externalFunctions: <String, ExtFuncDecl>{
+    'run': RunFuncDecl(),
+    'print': const PrintFuncDecl(),
+  });
+
+  @override
+  void stdoutPrint(String msg) {
+    io.stdout.writeln(msg);
+  }
+
+  @override
+  void stderrPrint(String msg) {
+    io.stderr.writeln(msg);
+  }
+}
+
+abstract class Interpreter {
+  Interpreter({
     required this.ctx,
-    this.emitter,
-    this.stdoutOverride,
-    this.stderrOverride,
+    required this.emitter,
+    required this.parseTree,
+    required this.externalFunctions,
   });
 
   final ParseTree parseTree;
   final Context ctx;
 
   final Emitter emitter;
-  final void Function(String)? stdoutOverride;
-  final void Function(String)? stderrOverride;
 
   Future<void> emit(String msg) async {
     if (emitter == null) {
@@ -65,25 +79,13 @@ class Interpreter {
     };
   }
 
-  static final Map<String, ExtFuncDecl> _externalFunctions =
-      <String, ExtFuncDecl>{
-    'run': RunFuncDecl(),
-    'print': const PrintFuncDecl(),
-  };
+  final Map<String, ExtFuncDecl> externalFunctions;
 
-  //visibleForOverriding
-  void stdoutPrint(String msg) {
-    if (stdoutOverride != null) {
-      stdoutOverride!(msg);
-    } else {
-      io.stdout.writeln(msg);
-    }
-  }
+  @visibleForOverriding
+  void stdoutPrint(String msg);
 
-  //visibleForOverriding
-  void stderrPrint(String msg) {
-    io.stderr.writeln(msg);
-  }
+  @visibleForOverriding
+  void stderrPrint(String msg);
 
   Future<void> interpret() async {
     // Register declarations
@@ -309,7 +311,7 @@ class Interpreter {
     }
 
     final FuncDecl? func =
-        _externalFunctions[expr.name] ?? _functionBindings[expr.name];
+        externalFunctions[expr.name] ?? _functionBindings[expr.name];
 
     if (func == null) {
       throwRuntimeError('Tried to call undeclared function ${expr.name}');

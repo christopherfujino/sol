@@ -21,7 +21,7 @@ final Future<List<io.File>> sourceFiles = (() async {
   return sourceFiles;
 })();
 
-class TestInterpreter extends Interpreter {
+class TestInterpreter extends CliInterpreter {
   TestInterpreter({
     required super.parseTree,
     required io.Directory workingDir,
