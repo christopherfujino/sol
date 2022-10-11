@@ -23,8 +23,8 @@ abstract class ExtFuncDecl<T extends Interpreter> extends FuncDecl {
   });
 }
 
-class CliPrintFuncDecl extends ExtFuncDecl<CliInterpreter> {
-  const CliPrintFuncDecl()
+class PrintFuncDecl extends ExtFuncDecl<Interpreter> {
+  const PrintFuncDecl()
       : super(
           name: 'print',
           params: const <NameTypePair>[NameTypePair('msg', TypeRef.string)],
@@ -32,7 +32,7 @@ class CliPrintFuncDecl extends ExtFuncDecl<CliInterpreter> {
 
   @override
   Future<BlockExit> interpret({
-    required CliInterpreter interpreter,
+    required Interpreter interpreter,
     required Context ctx,
   }) async {
     final StringVal message = ctx.args['msg']! as StringVal;

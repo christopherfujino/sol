@@ -31,9 +31,9 @@ class CliInterpreter extends Interpreter {
     required this.workingDir,
     super.emitter,
     this.env = const <String, String>{},
-  }) : super(externalFunctions: <String, ExtFuncDecl<CliInterpreter>>{
+  }) : super(externalFunctions: <String, ExtFuncDecl<Interpreter>>{
     'run': CliRunFuncDecl(),
-    'print': const CliPrintFuncDecl(),
+    'print': const PrintFuncDecl(),
   });
 
   final Map<String, String> env;
@@ -661,13 +661,6 @@ abstract class Interpreter {
       );
     }
     return fieldVal;
-
-    //for (int i = 1; i < expr.identifierChain.length; i += 1) {
-    //  final IdentifierRef currentIdentifier = expr.identifierChain[i];
-    //  // TODO support methods
-    //  final Val? fieldVal =
-    //      (currentVal as StructureVal).fields[currentIdentifier.name];
-    //}
   }
 }
 

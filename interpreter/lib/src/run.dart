@@ -51,7 +51,7 @@ class RunCommand extends Command<void> {
 
     final ParseTree config = await _parse(source, tokenList);
 
-    await Interpreter(
+    await CliInterpreter(
       parseTree: config,
       workingDir: workingDir,
       emitter: emitter,
