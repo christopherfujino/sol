@@ -5,6 +5,8 @@ import 'package:sol/sol.dart' as sol;
 import 'package:code_text_field/code_text_field.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'interpreter.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -71,13 +73,14 @@ function main() {
       return;
     }
     try {
-      await sol.Interpreter(
+      await IDEInterpreter(
           parseTree: parseTree,
-          workingDir: io.Directory('.'), // TODO get rid of
           emitter: null,
-          stdoutOverride: (String msg) {
+          stdoutCb: (String msg) {
             setState(() => output += '$msg\n');
-          }).interpret();
+          },
+          stderrCb: (String msg) {},
+          ).interpret();
     } on sol.RuntimeError catch (err) {
       debugPrint(err.toString());
       //io.stderr.writeln(err);
