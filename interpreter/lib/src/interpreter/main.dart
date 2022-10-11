@@ -1,4 +1,3 @@
-import 'dart:convert' show LineSplitter, utf8;
 import 'dart:io' as io;
 
 import 'package:meta/meta.dart';
@@ -16,23 +15,29 @@ class CliInterpreter extends Interpreter {
     required ParseTree parseTree,
     required io.Directory workingDir,
     Emitter? emitter,
+    Map<String, String> env = const <String, String>{},
   }) {
     return CliInterpreter.internal(
       parseTree: parseTree,
-      ctx: Context(workingDir: workingDir),
       emitter: emitter,
+      env: env,
+      workingDir: workingDir,
     );
   }
 
   @visibleForTesting
   CliInterpreter.internal({
     required super.parseTree,
-    required super.ctx,
+    required this.workingDir,
     super.emitter,
-  }) : super(externalFunctions: <String, ExtFuncDecl>{
-    'run': RunFuncDecl(),
-    'print': const PrintFuncDecl(),
+    this.env = const <String, String>{},
+  }) : super(externalFunctions: <String, ExtFuncDecl<CliInterpreter>>{
+    'run': CliRunFuncDecl(),
+    'print': const CliPrintFuncDecl(),
   });
+
+  final Map<String, String> env;
+  final io.Directory workingDir;
 
   @override
   void stdoutPrint(String msg) {
@@ -47,14 +52,13 @@ class CliInterpreter extends Interpreter {
 
 abstract class Interpreter {
   Interpreter({
-    required this.ctx,
     this.emitter,
     required this.parseTree,
     required this.externalFunctions,
   });
 
   final ParseTree parseTree;
-  final Context ctx;
+  final Context ctx = Context();
 
   final Emitter? emitter;
 
@@ -79,12 +83,10 @@ abstract class Interpreter {
     };
   }
 
-  final Map<String, ExtFuncDecl> externalFunctions;
+  final Map<String, ExtFuncDecl<Interpreter>> externalFunctions;
 
-  @visibleForOverriding
   void stdoutPrint(String msg);
 
-  @visibleForOverriding
   void stderrPrint(String msg);
 
   Future<void> interpret() async {
@@ -666,33 +668,6 @@ abstract class Interpreter {
     //  final Val? fieldVal =
     //      (currentVal as StructureVal).fields[currentIdentifier.name];
     //}
-  }
-
-  Future<int> runProcess({
-    required List<String> command,
-    io.Directory? workingDir,
-  }) async {
-    stdoutPrint('Running command "${command.join(' ')}"...');
-    final String executable = command.first;
-    final List<String> rest = command.sublist(1);
-    final io.Process process = await io.Process.start(
-      executable,
-      rest,
-      workingDirectory: workingDir?.absolute.path,
-    );
-    process.stdout
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen((String line) {
-      stdoutPrint(line);
-    });
-    process.stderr
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen((String line) {
-      stderrPrint(line);
-    });
-    return process.exitCode;
   }
 }
 

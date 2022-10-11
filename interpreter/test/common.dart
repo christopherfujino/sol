@@ -1,6 +1,5 @@
 import 'dart:io' as io;
 
-import 'package:sol/src/interpreter/context.dart';
 import 'package:sol/src/interpreter/main.dart';
 
 final Future<List<io.File>> sourceFiles = (() async {
@@ -24,8 +23,8 @@ final Future<List<io.File>> sourceFiles = (() async {
 class TestInterpreter extends CliInterpreter {
   TestInterpreter({
     required super.parseTree,
-    required io.Directory workingDir,
-  }) : super.internal(ctx: Context(workingDir: workingDir));
+    required super.workingDir,
+  }) : super.internal();
 
   final StringBuffer stdoutBuffer = StringBuffer();
   @override

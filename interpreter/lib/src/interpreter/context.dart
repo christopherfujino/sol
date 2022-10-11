@@ -1,18 +1,12 @@
-import 'dart:io' as io;
-
 import 'main.dart' show throwRuntimeError;
 import 'vals.dart';
 
 /// Runtime context, used for resolving identifiers.
 class Context {
   Context({
-    this.workingDir,
-    this.env,
     this.parent,
   });
 
-  final io.Directory? workingDir;
-  final Map<String, String>? env;
   final Context? parent;
 
   final List<Environment> _environments = <Environment>[];

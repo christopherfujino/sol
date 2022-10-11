@@ -1,27 +1,30 @@
+import 'dart:convert' show LineSplitter, utf8;
+import 'dart:io' as io;
 import '../parser/parser.dart'
     show FuncDecl, ListTypeRef, NameTypePair, Stmt, TypeRef;
 import 'context.dart';
-import 'main.dart' show throwRuntimeError, BlockExit, Interpreter, ReturnValue;
+import 'main.dart'
+    show throwRuntimeError, BlockExit, CliInterpreter, Interpreter, ReturnValue;
 import 'vals.dart';
 
 /// An external [FunctionDecl].
 ///
 /// TODO: These should not extend the parser interface [FuncDecl], but should
 /// instead implement an IR interface.
-abstract class ExtFuncDecl extends FuncDecl {
+abstract class ExtFuncDecl<T extends Interpreter> extends FuncDecl {
   const ExtFuncDecl({
     required super.name,
     required super.params,
   }) : super(statements: const <Stmt>[]);
 
   Future<BlockExit> interpret({
-    required Interpreter interpreter,
+    required T interpreter,
     required Context ctx,
   });
 }
 
-class PrintFuncDecl extends ExtFuncDecl {
-  const PrintFuncDecl()
+class CliPrintFuncDecl extends ExtFuncDecl<CliInterpreter> {
+  const CliPrintFuncDecl()
       : super(
           name: 'print',
           params: const <NameTypePair>[NameTypePair('msg', TypeRef.string)],
@@ -29,7 +32,7 @@ class PrintFuncDecl extends ExtFuncDecl {
 
   @override
   Future<BlockExit> interpret({
-    required Interpreter interpreter,
+    required CliInterpreter interpreter,
     required Context ctx,
   }) async {
     final StringVal message = ctx.args['msg']! as StringVal;
@@ -42,8 +45,8 @@ class PrintFuncDecl extends ExtFuncDecl {
   }
 }
 
-class RunFuncDecl extends ExtFuncDecl {
-  RunFuncDecl()
+class CliRunFuncDecl extends ExtFuncDecl<CliInterpreter> {
+  CliRunFuncDecl()
       : super(
           name: 'run',
           params: <NameTypePair>[
@@ -53,7 +56,7 @@ class RunFuncDecl extends ExtFuncDecl {
 
   @override
   Future<BlockExit> interpret({
-    required Interpreter interpreter,
+    required CliInterpreter interpreter,
     required Context ctx,
   }) async {
     if (!ctx.args.containsKey('command')) {
@@ -75,13 +78,32 @@ class RunFuncDecl extends ExtFuncDecl {
       );
     }
 
-    final int exitCode = await interpreter.runProcess(
-      command: command,
-      workingDir: ctx.workingDir,
+    interpreter.stdoutPrint('Running command "${command.join(' ')}"...');
+    final String executable = command.first;
+    final List<String> rest = command.sublist(1);
+    final io.Process process = await io.Process.start(
+      executable,
+      rest,
+      workingDirectory: interpreter.workingDir.absolute.path,
     );
+    process.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((String line) {
+      interpreter.stdoutPrint(line);
+    });
+    process.stderr
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((String line) {
+      interpreter.stderrPrint(line);
+    });
+
+    final int exitCode = await process.exitCode;
     if (exitCode != 0) {
       throwRuntimeError('"${command.join(' ')}" exited with code $exitCode');
     }
+    // TODO should this be a number?
     return ReturnValue.nothing;
   }
 }
